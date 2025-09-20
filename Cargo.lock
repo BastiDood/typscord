@@ -414,19 +414,14 @@ dependencies = [
 [[package]]
 name = "discordyst"
 version = "0.1.0"
-dependencies = [
- "bytemuck",
- "discordyst-world",
- "image",
- "typst",
- "typst-library",
- "typst-render",
-]
 
 [[package]]
 name = "discordyst-world"
 version = "0.1.0"
 dependencies = [
+ "bytemuck",
+ "ecow",
+ "image",
  "time",
  "ttf-parser 0.25.1",
  "typst",

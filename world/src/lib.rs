@@ -2,20 +2,35 @@ mod file;
 mod font;
 mod library;
 
+use bytemuck::cast_slice;
+use ecow::EcoVec;
 use file::File;
 use font::{FONT_BOOK, FONTS};
+use image::{ColorType, ImageFormat, write_buffer_with_format};
 use library::LIBRARY;
 use std::collections::BTreeMap;
+use std::io::Cursor;
 use time::{PrimitiveDateTime, UtcDateTime, UtcOffset};
-use typst::{Document, compile};
+use typst::{
+	Document, compile,
+	layout::{Abs, PagedDocument},
+};
 use typst_library::{
 	Library, World as TypstWorld,
+	diag::SourceDiagnostic,
 	diag::{FileError, FileResult, SourceResult, Warned},
 	foundations::{Bytes, Datetime},
 	text::{Font, FontBook},
 };
+use typst_render::render_merged;
 use typst_syntax::{FileId, Source, VirtualPath};
 use typst_utils::LazyHash;
+
+type Diagnostics = EcoVec<SourceDiagnostic>;
+pub struct Render {
+	pub document: PagedDocument,
+	pub buffer: Vec<u8>,
+}
 
 pub struct World {
 	sources: BTreeMap<FileId, File>,
@@ -31,6 +46,27 @@ impl World {
 
 	pub fn compile<D: Document>(&self) -> Warned<SourceResult<D>> {
 		compile(self)
+	}
+
+	pub fn render(&self) -> Warned<Result<Render, Diagnostics>> {
+		let Warned { output, warnings } = compile::<PagedDocument>(self);
+		Warned {
+			warnings,
+			output: output.map(|document| {
+				let pixel_map = render_merged(&document, 4., Abs::zero(), None);
+				let mut buffer = Cursor::<Vec<_>>::default();
+				write_buffer_with_format(
+					&mut buffer,
+					cast_slice(pixel_map.pixels()),
+					pixel_map.width(),
+					pixel_map.height(),
+					ColorType::Rgba8,
+					ImageFormat::WebP,
+				)
+				.expect("writing to Vec must be infallible");
+				Render { document, buffer: buffer.into_inner() }
+			}),
+		}
 	}
 }
 

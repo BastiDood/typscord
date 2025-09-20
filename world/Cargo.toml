@@ -6,11 +6,14 @@ version = "0.1.0"
 workspace = true
 
 [dependencies]
+bytemuck = "1.23"
+ecow = { version = "0.2", default-features = false }
+image = { version = "0.25", default-features = false, features = ["rayon", "webp"] }
 time = "0.3"
 ttf-parser = { version = "0.25", default-features = false, features = ["std"] }
-typst.workspace = true
-typst-assets.workspace = true
-typst-library.workspace = true
-typst-render.workspace = true
-typst-syntax.workspace = true
-typst-utils.workspace = true
+typst = "0.13"
+typst-assets = { version = "0.13", features = ["fonts"] }
+typst-library = "0.13"
+typst-render = "0.13"
+typst-syntax = "0.13"
+typst-utils = "0.13"
