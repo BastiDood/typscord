@@ -2,7 +2,7 @@ mod file;
 mod font;
 
 use file::File;
-use font::FONTS;
+use font::{FONT_BOOK, FONTS};
 use std::collections::BTreeMap;
 use typst::{Document, compile};
 use typst_library::{
@@ -16,7 +16,6 @@ use typst_utils::LazyHash;
 
 pub struct World {
 	library: LazyHash<Library>,
-	book: LazyHash<FontBook>,
 	sources: BTreeMap<FileId, File>,
 }
 
@@ -27,7 +26,6 @@ impl World {
 		let entry_source = File::new(entry_file_id, contents);
 		Self {
 			library: LazyHash::default(),
-			book: LazyHash::default(),
 			sources: BTreeMap::from([(entry_file_id, entry_source)]),
 		}
 	}
@@ -43,7 +41,7 @@ impl TypstWorld for World {
 	}
 
 	fn book(&self) -> &LazyHash<FontBook> {
-		&self.book
+		&FONT_BOOK
 	}
 
 	fn font(&self, index: usize) -> Option<Font> {
