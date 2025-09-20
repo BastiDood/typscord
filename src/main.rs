@@ -26,7 +26,7 @@ fn main() -> Result<()> {
 	match output {
 		Ok(output) => {
 			writeln!(stderr, "Rendering output...")?;
-			let pixel_map = render_merged(&output, 1., Abs::zero(), None);
+			let pixel_map = render_merged(&output, 4., Abs::zero(), None);
 
 			writeln!(stderr, "Encoding output as WebP...")?;
 			let mut buffer = Cursor::<Vec<_>>::default();
