@@ -427,6 +427,7 @@ dependencies = [
 name = "discordyst-world"
 version = "0.1.0"
 dependencies = [
+ "time",
  "ttf-parser 0.25.1",
  "typst",
  "typst-assets",

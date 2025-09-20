@@ -6,6 +6,7 @@ use file::File;
 use font::{FONT_BOOK, FONTS};
 use library::LIBRARY;
 use std::collections::BTreeMap;
+use time::{PrimitiveDateTime, UtcDateTime};
 use typst::{Document, compile};
 use typst_library::{
 	Library, World as TypstWorld,
@@ -47,8 +48,10 @@ impl TypstWorld for World {
 	}
 
 	fn today(&self, _: Option<i64>) -> Option<Datetime> {
-		// TODO: Use `jiff` for the `Datetime`.
-		None
+		// We could _technically_ just transmute the `UtcDateTime` to a `PrimitiveDateTime`, but
+		// that would be unnecessarily unsafe. This should be sufficient and optimizable anyway.
+		let now = UtcDateTime::now();
+		Some(Datetime::Datetime(PrimitiveDateTime::new(now.date(), now.time())))
 	}
 
 	fn main(&self) -> FileId {
