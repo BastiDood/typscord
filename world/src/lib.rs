@@ -6,7 +6,7 @@ use file::File;
 use font::{FONT_BOOK, FONTS};
 use library::LIBRARY;
 use std::collections::BTreeMap;
-use time::{PrimitiveDateTime, UtcDateTime};
+use time::{PrimitiveDateTime, UtcDateTime, UtcOffset};
 use typst::{Document, compile};
 use typst_library::{
 	Library, World as TypstWorld,
@@ -47,10 +47,15 @@ impl TypstWorld for World {
 		FONTS.get(index).cloned()
 	}
 
-	fn today(&self, _: Option<i64>) -> Option<Datetime> {
-		// We could _technically_ just transmute the `UtcDateTime` to a `PrimitiveDateTime`, but
-		// that would be unnecessarily unsafe. This should be sufficient and optimizable anyway.
+	fn today(&self, offset: Option<i64>) -> Option<Datetime> {
 		let now = UtcDateTime::now();
+		let offset = offset
+			.and_then(|offset| {
+				let offset = offset.try_into().ok()?;
+				UtcOffset::from_hms(offset, 0, 0).ok()
+			})
+			.unwrap_or(UtcOffset::UTC);
+		let now = now.to_offset(offset);
 		Some(Datetime::Datetime(PrimitiveDateTime::new(now.date(), now.time())))
 	}
 
