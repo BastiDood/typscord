@@ -1,2 +1,6 @@
 /.vscode
 /target
+
+# Test Fixtures
+*.typ
+*.webp
