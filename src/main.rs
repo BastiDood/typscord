@@ -30,20 +30,19 @@ fn main() -> Result<()> {
 
 			writeln!(stderr, "Encoding output as WebP...")?;
 			let mut buffer = Cursor::<Vec<_>>::default();
-			if let Err(error) = write_buffer_with_format(
+			write_buffer_with_format(
 				&mut buffer,
 				bytemuck::cast_slice(pixel_map.pixels()),
 				pixel_map.width(),
 				pixel_map.height(),
 				ColorType::Rgba8,
 				ImageFormat::WebP,
-			) {
-				writeln!(stderr, "{error:#?}")?;
-				return Err(std::io::ErrorKind::Other.into());
-			}
+			)
+			.expect("writing to Vec must be infallible");
 
-			writeln!(stderr, "Writing output...")?;
 			let buffer = buffer.into_inner();
+			let size = buffer.len();
+			writeln!(stderr, "Writing {size} bytes to output...")?;
 			stdout.write_all(&buffer)?;
 		}
 		Err(errors) => {
