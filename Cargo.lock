@@ -621,7 +621,6 @@ dependencies = [
 name = "discordyst-interaction"
 version = "0.1.0"
 dependencies = [
- "discordyst-world",
  "serde_json",
  "serenity",
  "tracing",

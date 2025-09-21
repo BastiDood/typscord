@@ -4,7 +4,6 @@ version = "0.1.0"
 edition.workspace = true
 
 [dependencies]
-discordyst-world.path = "../world"
 serenity = { version = "0.12", default-features = false, features = ["builder"] }
 serde_json = { version = "1", default-features = false }
 tracing.workspace = true

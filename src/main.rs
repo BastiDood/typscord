@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context as _, Result};
 use axum::{
 	Router,
 	extract::{Request, State},
@@ -15,6 +15,33 @@ use futures_util::TryStreamExt as _;
 use std::{env::var, sync::Arc};
 use tokio::{net::TcpListener, runtime::Builder};
 use tracing::error;
+
+fn main() -> Result<()> {
+	let port: u16 = var("PORT")
+		.context("PORT must be set")?
+		.parse()
+		.context("PORT must be a valid port number")?;
+	let discord_public_key = var("DISCORD_PUBLIC_KEY").context("DISCORD_PUBLIC_KEY must be set")?;
+
+	let public_key = {
+		let mut bytes = [0; 32];
+		hex::decode_to_slice(discord_public_key, &mut bytes)
+			.context("DISCORD_PUBLIC_KEY must be valid hex")?;
+		VerifyingKey::from_bytes(&bytes)
+			.context("DISCORD_PUBLIC_KEY must be valid point under ZIP-215 rules")?
+	};
+
+	let app = Router::new()
+		.route("/discord/interaction", routing::post(handle_discord_interaction))
+		.with_state(AppState(Arc::new(public_key)));
+
+	let runtime = Builder::new_current_thread().enable_io().build()?;
+	runtime.block_on(async {
+		let listener = TcpListener::bind((Ipv4Addr::UNSPECIFIED, port)).await?;
+		serve(listener, app).await?;
+		Ok(())
+	})
+}
 
 #[derive(Clone)]
 struct AppState(Arc<VerifyingKey>);
@@ -64,24 +91,4 @@ async fn handle_discord_interaction(
 	})?;
 
 	Ok(Json(discordyst_interaction::handle(interaction)))
-}
-
-fn main() -> Result<()> {
-	let port: u16 = var("PORT")?.parse()?;
-
-	let discord_public_key = var("DISCORD_PUBLIC_KEY")?;
-	let mut public_key = [0; 32];
-	hex::decode_to_slice(discord_public_key, &mut public_key)?;
-	let public_key = VerifyingKey::from_bytes(&public_key)?;
-
-	let app = Router::new()
-		.route("/discord/interaction", routing::post(handle_discord_interaction))
-		.with_state(AppState(Arc::new(public_key)));
-
-	let runtime = Builder::new_current_thread().enable_io().build()?;
-	runtime.block_on(async {
-		let listener = TcpListener::bind((Ipv4Addr::UNSPECIFIED, port)).await?;
-		serve(listener, app).await?;
-		Ok(())
-	})
 }
