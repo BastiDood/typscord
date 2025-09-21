@@ -1,13 +1,29 @@
 [workspace]
-members = ["world"]
+members = ["world", "interaction"]
 
 [workspace.package]
 edition = "2024"
+
+[workspace.dependencies]
+tracing = { version = "0.1", default-features = false }
 
 [package]
 name = "discordyst"
 version = "0.1.0"
 edition.workspace = true
+
+[dependencies]
+anyhow = "1"
+axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "tracing"] }
+bytes = { version = "1.10", default-features = false }
+discordyst-interaction.path = "./interaction"
+ed25519-dalek = "2.1"
+futures-util = { version = "0.3", default-features = false }
+hex = "0.4"
+serde_json = { version = "1", default-features = false }
+serenity = { version = "0.12", default-features = false }
+tokio = { version = "1.47", features = ["rt-multi-thread", "net"] }
+tracing.workspace = true
 
 [profile.release]
 lto = "thin"
