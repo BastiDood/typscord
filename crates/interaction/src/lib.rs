@@ -31,6 +31,7 @@ pub fn handle(interaction: Interaction) -> CreateInteractionResponse {
 			)
 		}
 		Interaction::Modal(ModalInteraction {
+			application_id,
 			token,
 			data: ModalInteractionData { custom_id, mut components, .. },
 			..

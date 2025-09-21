@@ -6,4 +6,3 @@ edition.workspace = true
 [dependencies]
 serenity = { version = "0.12", default-features = false, features = ["builder"] }
 serde_json = { version = "1", default-features = false }
-tracing.workspace = true

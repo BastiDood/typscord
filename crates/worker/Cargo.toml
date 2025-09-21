@@ -1,0 +1,8 @@
+[package]
+name = "discordyst-worker"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+twilight-http.workspace = true
+twilight-model.workspace = true

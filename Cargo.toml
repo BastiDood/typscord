@@ -6,6 +6,8 @@ edition = "2024"
 
 [workspace.dependencies]
 tracing = { version = "0.1", default-features = false }
+twilight-http = "0.16"
+twilight-model = "0.16"
 
 [package]
 name = "discordyst"
@@ -17,11 +19,12 @@ anyhow = "1"
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "tracing"] }
 bytes = { version = "1.10", default-features = false }
 discordyst-interaction.path = "./crates/interaction"
+discordyst-worker.path = "./crates/worker"
 ed25519-dalek = "2.1"
 futures-util = { version = "0.3", default-features = false }
 hex = "0.4"
 serde_json = { version = "1", default-features = false }
-tokio = { version = "1.47", features = ["rt-multi-thread", "net"] }
+tokio = { version = "1.47", features = ["rt-multi-thread", "net", "time"] }
 tracing.workspace = true
 
 [profile.release]
