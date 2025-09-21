@@ -9,9 +9,6 @@ use twilight_model::id::{Id, marker::ApplicationMarker};
 pub use twilight_model::{channel::message::Embed, http::attachment::Attachment};
 
 pub type ApplicationId = Id<ApplicationMarker>;
-pub fn try_cast_application_id(application_id: u64) -> Option<ApplicationId> {
-	Id::new_checked(application_id)
-}
 
 pub struct Http<'token> {
 	http: Client,
