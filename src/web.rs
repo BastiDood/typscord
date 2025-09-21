@@ -9,7 +9,7 @@ use axum::{
 use bytes::BytesMut;
 use core::future;
 use core::net::Ipv4Addr;
-use discordyst_interaction::CreateInteractionResponse;
+use discordyst_interaction::InteractionResponse;
 use ed25519_dalek::{Signature, VerifyingKey};
 use futures_util::TryStreamExt as _;
 use std::{env, sync::Arc};
@@ -50,7 +50,7 @@ struct AppState(Arc<VerifyingKey>);
 async fn handle_discord_interaction(
 	State(AppState(public_key)): State<AppState>,
 	request: Request,
-) -> Result<Json<CreateInteractionResponse>, StatusCode> {
+) -> Result<Json<InteractionResponse>, StatusCode> {
 	let (Parts { headers, .. }, body) = request.into_parts();
 	let signature = headers.get("X-Signature-Ed25519");
 	let timestamp = headers.get("X-Signature-Timestamp");

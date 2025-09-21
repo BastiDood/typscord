@@ -1,106 +1,95 @@
-use serenity::{
-	builder::{CreateActionRow, CreateInputText, CreateInteractionResponseMessage, CreateModal},
-	model::application::{
-		ActionRow, ActionRowComponent, CommandData, CommandInteraction, CommandType, InputText,
-		InputTextStyle, Interaction, InteractionResponseFlags, ModalInteraction,
-		ModalInteractionData,
+use twilight_model::{
+	application::{
+		command::CommandType,
+		interaction::{
+			Interaction, InteractionData, InteractionType,
+			application_command::CommandData,
+			modal::{
+				ModalInteractionData, ModalInteractionDataActionRow, ModalInteractionDataComponent,
+			},
+		},
 	},
+	channel::message::{
+		MessageFlags,
+		component::{ActionRow, Component, TextInput, TextInputStyle},
+	},
+	http::interaction::{InteractionResponseData, InteractionResponseType},
 };
 
-pub use serenity::builder::CreateInteractionResponse;
+pub use twilight_model::http::interaction::InteractionResponse;
 
 #[must_use]
-pub fn handle(interaction: Interaction) -> CreateInteractionResponse {
+pub fn handle(interaction: Interaction) -> InteractionResponse {
 	match interaction {
-		Interaction::Ping(_) => CreateInteractionResponse::Pong,
-		Interaction::Command(CommandInteraction {
-			data: CommandData { kind: CommandType::ChatInput, name, .. },
-			..
-		}) => {
-			assert_eq!(name, "typst");
-			CreateInteractionResponse::Modal(
-				CreateModal::new("modal", "Render Typst Code").components(vec![
-					CreateActionRow::InputText(
-						CreateInputText::new(InputTextStyle::Paragraph, "Typst Code", "code")
-							.max_length(4000)
-							.placeholder(
-								"Enter your Typst code here. Third-party packages are not yet supported.",
-							),
-					),
-				]),
-			)
+		Interaction { kind: InteractionType::Ping, .. } => {
+			InteractionResponse { kind: InteractionResponseType::Pong, data: None }
 		}
-		Interaction::Modal(ModalInteraction {
-			application_id,
-			token,
-			data: ModalInteractionData { custom_id, mut components, .. },
+		Interaction {
+			kind: InteractionType::ApplicationCommand,
+			data: Some(InteractionData::ApplicationCommand(cmd)),
 			..
-		}) => {
+		} => {
+			let CommandData { kind, name, .. } = *cmd;
+			assert_eq!(kind, CommandType::ChatInput);
+			assert_eq!(name, "typst");
+			InteractionResponse {
+				kind: InteractionResponseType::Modal,
+				data: Some(InteractionResponseData {
+					custom_id: Some("modal".to_string()),
+					title: Some("Render Typst Code".to_string()),
+					components: Some(vec![
+						Component::ActionRow(ActionRow {
+							components: vec![
+								Component::TextInput(TextInput {
+									custom_id: "code".to_string(),
+									label: "Typst Code".to_string(),
+									style: TextInputStyle::Paragraph,
+									max_length: Some(4000),
+									placeholder: Some("Enter your Typst code here. Third-party packages are not yet supported.".to_string()),
+									required: Some(true),
+									value: None,
+									min_length: None,
+								}),
+							],
+						}),
+					]),
+					..Default::default()
+				}),
+			}
+		}
+		Interaction {
+			kind: InteractionType::ModalSubmit,
+			data:
+				Some(InteractionData::ModalSubmit(ModalInteractionData {
+					custom_id,
+					mut components,
+					..
+				})),
+			..
+		} => {
 			assert_eq!(custom_id, "modal");
 
 			let action_row = components.pop().expect("modal must have at least one action row");
 			assert!(components.is_empty(), "modal must have exactly one action row");
 
-			let ActionRow { mut components, .. } = action_row;
-			let input_text = components.pop().expect("modal must have at least one component");
+			let ModalInteractionDataActionRow { mut components } = action_row;
+			let ModalInteractionDataComponent { custom_id, value, .. } =
+				components.pop().expect("modal must have at least one component");
 			assert!(components.is_empty(), "modal must have exactly one component");
 
-			let ActionRowComponent::InputText(InputText { custom_id, value, .. }) = input_text
-			else {
-				unreachable!("modal must be exactly one text input");
-			};
 			assert_eq!(custom_id, "code");
 
-			// Ship the request to a subprocess
+			// TODO: Ship the request to a subprocess
 			let value = value.expect("modal text input has required value");
 
-			CreateInteractionResponse::Defer(
-				CreateInteractionResponseMessage::new()
-					.flags(InteractionResponseFlags::EPHEMERAL)
-					.content("Rendering your Typst code..."),
-			)
-
-			/*
-			match output {
-				Ok(Render { buffer, .. }) => CreateInteractionResponse::Defer(
-					CreateInteractionResponseMessage::new()
-						.flags(InteractionResponseFlags::EPHEMERAL)
-						.content("Rendering your Typst code..."),
-				),
-				Err(errors) => CreateInteractionResponse::Message(
-					CreateInteractionResponseMessage::new()
-						.flags(InteractionResponseFlags::EPHEMERAL)
-						.content(
-							"The code could not be rendered due to the following compilation errors.",
-						)
-						.embeds({
-							let mut embeds = vec![
-								CreateEmbed::new()
-									.title("Errors")
-									.description("Only the first 25 errors are shown.")
-									.fields(errors.into_iter().take(25).map(
-										|SourceDiagnostic { message, hints, .. }| {
-											(message, hints.join("\n"), false)
-										},
-									)),
-							];
-							if !warnings.is_empty() {
-								embeds.push(
-									CreateEmbed::new()
-										.title("Warnings")
-										.description("Only the first 25 warnings are shown.")
-										.fields(warnings.into_iter().take(25).map(
-											|SourceDiagnostic { message, hints, .. }| {
-												(message, hints.join("\n"), false)
-											},
-										)),
-								);
-							}
-							embeds
-						}),
-				),
+			InteractionResponse {
+				kind: InteractionResponseType::DeferredChannelMessageWithSource,
+				data: Some(InteractionResponseData {
+					content: Some("Rendering your Typst code...".to_string()),
+					flags: Some(MessageFlags::EPHEMERAL),
+					..Default::default()
+				}),
 			}
-			*/
 		}
 		_ => unreachable!("unknown interaction"),
 	}
