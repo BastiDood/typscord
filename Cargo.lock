@@ -613,7 +613,6 @@ dependencies = [
  "futures-util",
  "hex",
  "serde_json",
- "serenity",
  "tokio",
  "tracing",
 ]

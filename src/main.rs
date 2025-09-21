@@ -7,10 +7,11 @@ use axum::{
 	routing, serve,
 };
 use bytes::BytesMut;
+use core::future::ready;
 use core::net::Ipv4Addr;
 use discordyst_interaction::CreateInteractionResponse;
 use ed25519_dalek::{Signature, VerifyingKey};
-use futures_util::StreamExt as _;
+use futures_util::TryStreamExt as _;
 use std::{env::var, sync::Arc};
 use tokio::{net::TcpListener, runtime::Builder};
 use tracing::error;
@@ -36,17 +37,20 @@ async fn handle_discord_interaction(
 		StatusCode::BAD_REQUEST
 	})?;
 
-	let mut message = BytesMut::from(timestamp.as_bytes());
+	let message = BytesMut::from(timestamp.as_bytes());
 	let start = message.len();
 
-	let mut stream = body.into_data_stream();
-	while let Some(chunk) = stream.next().await {
-		let chunk = chunk.map_err(|error| {
+	let message = body
+		.into_data_stream()
+		.try_fold(message, |mut message, chunk| {
+			message.extend_from_slice(&chunk);
+			ready(Ok(message))
+		})
+		.await
+		.map_err(|error| {
 			error!(?error);
 			StatusCode::BAD_REQUEST
 		})?;
-		message.extend_from_slice(&chunk);
-	}
 
 	public_key.verify_strict(&message, &signature).map_err(|error| {
 		error!(?error);
