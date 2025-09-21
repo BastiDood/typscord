@@ -2,15 +2,20 @@ mod web;
 mod worker;
 
 use anyhow::Result;
-use std::env;
+use std::{env, io};
+use tracing::error;
+use tracing_subscriber::{EnvFilter, fmt};
 
 fn main() -> Result<()> {
-	let mut args = env::args().skip(1);
-	let application_id = args.next();
-	if let Some(application_id) = application_id {
-		let interaction_token = args.next().expect("interaction token is required");
-		worker::main(&application_id, &interaction_token)
-	} else {
-		web::main()
+	fmt().with_writer(io::stderr).with_env_filter(EnvFilter::from_default_env()).init();
+	let mode = env::args().nth(1);
+	match mode.as_deref() {
+		Some("worker") => worker::main()?,
+		None => web::main()?,
+		Some(mode) => {
+			error!(mode, "unknown mode");
+			anyhow::bail!("unknown arguments");
+		}
 	}
+	Ok(())
 }
