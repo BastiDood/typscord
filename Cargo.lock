@@ -650,8 +650,8 @@ dependencies = [
  "anyhow",
  "axum",
  "bytes",
+ "discordyst-http",
  "discordyst-interaction",
- "discordyst-worker",
  "ed25519-dalek",
  "futures-util",
  "hex",
@@ -661,18 +661,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "discordyst-interaction"
+name = "discordyst-http"
 version = "0.1.0"
 dependencies = [
- "serde_json",
+ "twilight-http",
  "twilight-model",
 ]
 
 [[package]]
-name = "discordyst-worker"
+name = "discordyst-interaction"
 version = "0.1.0"
 dependencies = [
- "twilight-http",
+ "serde_json",
  "twilight-model",
 ]
 

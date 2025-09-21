@@ -13,7 +13,7 @@ pub fn try_cast_application_id(application_id: u64) -> Option<ApplicationId> {
 	Id::new_checked(application_id)
 }
 
-pub struct Worker<'token> {
+pub struct Http<'token> {
 	http: Client,
 	application_id: ApplicationId,
 	interaction_token: &'token str,
@@ -21,7 +21,7 @@ pub struct Worker<'token> {
 
 type TwilightHttpError<T> = Result<T, twilight_http::Error>;
 
-impl<'token> Worker<'token> {
+impl<'token> Http<'token> {
 	pub fn new(
 		bot_token: String,
 		application_id: ApplicationId,
@@ -31,7 +31,7 @@ impl<'token> Worker<'token> {
 	}
 }
 
-impl Worker<'_> {
+impl Http<'_> {
 	pub async fn update_response_with_embeds(
 		&self,
 		content: &str,
