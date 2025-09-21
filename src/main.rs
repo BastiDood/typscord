@@ -3,10 +3,12 @@ use axum::{
 	Router,
 	extract::{Request, State},
 	http::{StatusCode, request::Parts},
+	response::Json,
 	routing, serve,
 };
 use bytes::BytesMut;
 use core::net::Ipv4Addr;
+use discordyst_interaction::CreateInteractionResponse;
 use ed25519_dalek::{Signature, VerifyingKey};
 use futures_util::StreamExt as _;
 use std::{env::var, sync::Arc};
@@ -19,7 +21,7 @@ struct AppState(Arc<VerifyingKey>);
 async fn handle_discord_interaction(
 	State(AppState(public_key)): State<AppState>,
 	request: Request,
-) -> Result<(), StatusCode> {
+) -> Result<Json<CreateInteractionResponse>, StatusCode> {
 	let (Parts { headers, .. }, body) = request.into_parts();
 	let signature = headers.get("X-Signature-Ed25519");
 	let timestamp = headers.get("X-Signature-Timestamp");
@@ -57,8 +59,7 @@ async fn handle_discord_interaction(
 		StatusCode::BAD_REQUEST
 	})?;
 
-	discordyst_interaction::handle(interaction);
-	Ok(())
+	Ok(Json(discordyst_interaction::handle(interaction)))
 }
 
 fn main() -> Result<()> {

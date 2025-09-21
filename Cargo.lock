@@ -623,6 +623,7 @@ name = "discordyst-interaction"
 version = "0.1.0"
 dependencies = [
  "discordyst-world",
+ "serde_json",
  "serenity",
  "tracing",
 ]
@@ -638,10 +639,7 @@ dependencies = [
  "ttf-parser 0.25.1",
  "typst",
  "typst-assets",
- "typst-library",
  "typst-render",
- "typst-syntax",
- "typst-utils",
 ]
 
 [[package]]

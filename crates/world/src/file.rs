@@ -1,5 +1,7 @@
-use typst_library::foundations::Bytes;
-use typst_syntax::{FileId, Source};
+use typst::{
+	foundations::Bytes,
+	syntax::{FileId, Source},
+};
 
 pub struct File {
 	pub bytes: Bytes,

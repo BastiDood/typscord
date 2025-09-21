@@ -12,19 +12,17 @@ use std::collections::BTreeMap;
 use std::io::Cursor;
 use time::{PrimitiveDateTime, UtcDateTime, UtcOffset};
 use typst::{
-	Document, compile,
-	layout::{Abs, PagedDocument},
-};
-use typst_library::{
-	Library, World as TypstWorld,
-	diag::SourceDiagnostic,
-	diag::{FileError, FileResult, SourceResult, Warned},
+	Document, Library, World as TypstWorld, compile,
+	diag::{FileError, FileResult, SourceResult},
 	foundations::{Bytes, Datetime},
+	layout::{Abs, PagedDocument},
+	syntax::{FileId, Source, VirtualPath},
 	text::{Font, FontBook},
+	utils::LazyHash,
 };
 use typst_render::render_merged;
-use typst_syntax::{FileId, Source, VirtualPath};
-use typst_utils::LazyHash;
+
+pub use typst::diag::{SourceDiagnostic, Warned};
 
 type Diagnostics = EcoVec<SourceDiagnostic>;
 pub struct Render {
@@ -49,7 +47,7 @@ impl World {
 	}
 
 	pub fn render(&self) -> Warned<Result<Render, Diagnostics>> {
-		let Warned { output, warnings } = compile::<PagedDocument>(self);
+		let Warned { output, warnings } = self.compile::<PagedDocument>();
 		Warned {
 			warnings,
 			output: output.map(|document| {

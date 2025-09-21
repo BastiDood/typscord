@@ -1,11 +1,11 @@
 use std::sync::LazyLock;
 use ttf_parser::fonts_in_collection;
-use typst_assets::fonts;
-use typst_library::{
+use typst::{
 	foundations::Bytes,
 	text::{Font, FontBook},
+	utils::LazyHash,
 };
-use typst_utils::LazyHash;
+use typst_assets::fonts;
 
 type Fonts = Box<[Font]>;
 pub static FONTS: LazyLock<Fonts> = LazyLock::new(|| {
