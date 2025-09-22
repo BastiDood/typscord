@@ -2,7 +2,7 @@ mod buffer;
 mod string;
 
 use core::time::Duration;
-use std::{path::Path, process::Stdio, sync::Arc};
+use std::{path::Path, process::Stdio, sync::Arc, time::Instant};
 use tokio::{
 	io::{AsyncReadExt as _, AsyncWriteExt as _, BufReader},
 	process::Command,
@@ -112,28 +112,12 @@ impl InteractionHandler {
 				let mut content = "#set page(width: auto, height: auto, margin: 12pt)\n".to_owned();
 				content.push_str(&value);
 
-				let value = {
-					// Escape internal code blocks
-					let fence = string::find_longest_streak(&value, '`');
-					if fence.len() < 3 {
-						format!("```typst\n{value}\n```")
-					} else {
-						// Add just one last pair beyond the longest streak
-						format!("`{fence}typst\n{value}\n{fence}`")
-					}
-				};
-
 				let token = token.into_boxed_str();
 				tokio::spawn(self.subprocess(application_id, token, content.into_boxed_str()));
 
 				InteractionResponse {
 					kind: InteractionResponseType::DeferredChannelMessageWithSource,
-					data: Some(InteractionResponseData {
-						// NOTE: four backticks are required to prevent code blocks from being
-						// misinterpreted as code blocks.
-						content: Some(value),
-						..Default::default()
-					}),
+					data: None,
 				}
 			}
 			_ => unreachable!("unknown interaction"),
@@ -164,9 +148,14 @@ impl InteractionHandler {
 		let stdout = command.stdout.take().expect("stdout must have been piped");
 		let mut stdout = BufReader::new(stdout);
 
+		let now = Instant::now();
+		let result =
+			tokio::time::timeout(self.compilation_timeout, buffer::read_usize(&mut stdout)).await;
+		let elapsed_ms = now.elapsed().as_millis();
+		info!(millis = elapsed_ms, "compilation timer");
+
 		let http = self.http.interaction(application_id, token);
-		match tokio::time::timeout(self.compilation_timeout, buffer::read_usize(&mut stdout)).await
-		{
+		match result {
 			Ok(result) => {
 				let warning_count = result.expect("stdout must read warning count");
 				info!(warnings = warning_count, "read warning count");
@@ -273,7 +262,18 @@ impl InteractionHandler {
 					});
 				}
 
-				http.create_ephemeral_followup_with_embeds("Render finished.", &embeds)
+				let value = {
+					// Escape internal code blocks
+					let fence = string::find_longest_streak(&value, '`');
+					if fence.len() < 3 {
+						format!("Rendered in **{elapsed_ms}ms**.\n```typst\n{value}\n```")
+					} else {
+						// Add just one last pair beyond the longest streak
+						format!("Rendered in **{elapsed_ms}ms**.\n`{fence}typst\n{value}\n{fence}`")
+					}
+				};
+
+				http.create_ephemeral_followup_with_embeds(&value, &embeds)
 					.await
 					.expect("ephemeral followup must succeed");
 			}
@@ -285,12 +285,12 @@ impl InteractionHandler {
 				command.kill().await.expect("worker process must be killed");
 				drop(command);
 
-				http.update_response_with_embeds(
-					"Compilation took longer than a second. Check your code for infinite loops and expensive operations.",
-					&[],
-				)
-				.await
-				.expect("original response edit must succeed");
+				let value = format!(
+					"Compilation timed out after **{elapsed_ms}ms**. Check your code for infinite loops and expensive operations."
+				);
+				http.update_response_with_embeds(&value, &[])
+					.await
+					.expect("original response edit must succeed");
 			}
 		}
 	}
