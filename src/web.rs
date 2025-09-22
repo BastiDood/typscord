@@ -48,7 +48,7 @@ pub fn main() -> Result<()> {
 		.with_state(KeyState {
 			public_key: Arc::new(public_key),
 			interaction_handler: Arc::new(InteractionHandler::new(
-				Duration::from_secs(typscord_compilation_timeout),
+				Duration::from_millis(typscord_compilation_timeout),
 				exe_path,
 				discord_bot_token,
 			)),
