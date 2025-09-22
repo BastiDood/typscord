@@ -46,7 +46,7 @@ impl HttpInteraction<'_> {
 		// TODO: Log the `Message` object.
 		self.http
 			.update_response(&self.interaction_token)
-			.content(Some(&content))
+			.content(Some(content))
 			.embeds(Some(embeds))
 			.await?;
 		Ok(())
