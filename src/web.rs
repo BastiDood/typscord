@@ -13,7 +13,7 @@ use ed25519_dalek::{Signature, VerifyingKey};
 use futures_util::TryStreamExt as _;
 use std::{env, sync::Arc};
 use tokio::{net::TcpListener, runtime::Builder};
-use tracing::error;
+use tracing::{error, info};
 use typscord_interaction::{InteractionHandler, InteractionResponse};
 
 pub fn main() -> Result<()> {
@@ -36,6 +36,8 @@ pub fn main() -> Result<()> {
 	};
 
 	let exe_path = env::current_exe()?.into_boxed_path();
+	info!(exe = %exe_path.display(), "executable path found");
+
 	let app = Router::new()
 		.route("/discord/interaction", routing::post(handle_discord_interaction))
 		.with_state(KeyState {
@@ -46,6 +48,10 @@ pub fn main() -> Result<()> {
 	let runtime = Builder::new_current_thread().enable_io().enable_time().build()?;
 	runtime.block_on(async {
 		let listener = TcpListener::bind((Ipv4Addr::UNSPECIFIED, port)).await?;
+		{
+			let address = listener.local_addr()?;
+			info!(%address, "listening on local address");
+		}
 		serve(listener, app).await?;
 		Ok(())
 	})
