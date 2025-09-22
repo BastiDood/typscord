@@ -264,6 +264,12 @@ impl InteractionHandler {
 			}
 			Err(error) => {
 				error!(?error, "timeout when compiling code");
+
+				// We need to preemptively kill the process or else we'll risk running infinite
+				// loops in the background.
+				command.kill().await.expect("worker process must be killed");
+				drop(command);
+
 				http.update_response_with_embeds(
 					"Compilation took longer than a second. Check your code for infinite loops and expensive operations.",
 					&[],
