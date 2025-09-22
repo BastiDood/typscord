@@ -107,10 +107,14 @@ impl InteractionHandler {
 
 				assert_eq!(custom_id, "code");
 
-				// Ship the render request to a subprocess
-				let value = value.expect("modal text input has required value").into_boxed_str();
+				// We prefix a `#set page` directive at the last part so that the user cannot override it.
+				let value = value.expect("modal text input has required value");
+				let mut content = "#set page(width: auto, height: auto, margin: 8pt)\n".to_owned();
+				content.push_str(&value);
+				drop(value);
+
 				let token = token.into_boxed_str();
-				tokio::spawn(self.subprocess(application_id, token, value));
+				tokio::spawn(self.subprocess(application_id, token, content.into_boxed_str()));
 
 				InteractionResponse {
 					kind: InteractionResponseType::DeferredChannelMessageWithSource,
