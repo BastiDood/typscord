@@ -34,13 +34,14 @@ use typscord_http::{ApplicationId, Http};
 pub use twilight_model::http::interaction::InteractionResponse;
 
 pub struct InteractionHandler {
+	compilation_timeout: Duration,
 	exe_path: Box<Path>,
 	http: Http,
 }
 
 impl InteractionHandler {
-	pub fn new(exe_path: Box<Path>, bot_token: String) -> Self {
-		Self { exe_path, http: Http::new(bot_token) }
+	pub fn new(compilation_timeout: Duration, exe_path: Box<Path>, bot_token: String) -> Self {
+		Self { compilation_timeout, exe_path, http: Http::new(bot_token) }
 	}
 
 	#[must_use]
@@ -149,7 +150,7 @@ impl InteractionHandler {
 		let mut stdout = BufReader::new(stdout);
 
 		let http = self.http.interaction(application_id, token);
-		match tokio::time::timeout(Duration::from_millis(1000), read_usize(&mut stdout)).await {
+		match tokio::time::timeout(self.compilation_timeout, read_usize(&mut stdout)).await {
 			Ok(result) => {
 				let warning_count = result.expect("stdout must read warning count");
 				info!(warnings = warning_count, "read warning count");

@@ -7,8 +7,8 @@ use axum::{
 	routing, serve,
 };
 use bytes::BytesMut;
-use core::future;
 use core::net::Ipv4Addr;
+use core::{future, time::Duration};
 use ed25519_dalek::{Signature, VerifyingKey};
 use futures_util::TryStreamExt as _;
 use std::{env, sync::Arc};
@@ -27,6 +27,11 @@ pub fn main() -> Result<()> {
 	let discord_public_key =
 		env::var("DISCORD_PUBLIC_KEY").context("DISCORD_PUBLIC_KEY must be set")?;
 
+	let typscord_compilation_timeout = env::var("TYPSCORD_COMPILATION_TIMEOUT")
+		.context("TYPSCORD_COMPILATION_TIMEOUT must be set")?
+		.parse()
+		.context("TYPSCORD_COMPILATION_TIMEOUT must be a valid duration")?;
+
 	let public_key = {
 		let mut bytes = [0; 32];
 		hex::decode_to_slice(discord_public_key, &mut bytes)
@@ -42,7 +47,11 @@ pub fn main() -> Result<()> {
 		.route("/discord/interaction", routing::post(handle_discord_interaction))
 		.with_state(KeyState {
 			public_key: Arc::new(public_key),
-			interaction_handler: Arc::new(InteractionHandler::new(exe_path, discord_bot_token)),
+			interaction_handler: Arc::new(InteractionHandler::new(
+				Duration::from_secs(typscord_compilation_timeout),
+				exe_path,
+				discord_bot_token,
+			)),
 		});
 
 	let runtime = Builder::new_current_thread().enable_io().enable_time().build()?;
