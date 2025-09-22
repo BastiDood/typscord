@@ -109,7 +109,7 @@ impl InteractionHandler {
 
 				// We prefix a `#set page` directive at the last part so that the user cannot override it.
 				let value = value.expect("modal text input has required value");
-				let mut content = "#set page(height: auto, margin: 12pt)\n".to_owned();
+				let mut content = "#set page(width: auto, height: auto, margin: 12pt)\n".to_owned();
 				content.push_str(&value);
 
 				let value = {
