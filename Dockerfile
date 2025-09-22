@@ -12,7 +12,7 @@ COPY . .
 RUN cargo build --locked --release
 
 FROM gcr.io/distroless/static-debian12:nonroot-amd64
-COPY --from=builder /app/target/release/app /
+COPY --from=builder /app/target/release/typscord /
 EXPOSE 3000
 ENV PORT="3000"
-CMD ["/app"]
+CMD ["/typscord"]
