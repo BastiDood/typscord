@@ -46,14 +46,24 @@ impl InteractionHandler {
 	#[must_use]
 	pub fn handle(self: Arc<Self>, interaction: Interaction) -> InteractionResponse {
 		match interaction {
-			Interaction { kind: InteractionType::Ping, .. } => {
+			Interaction { id, kind: InteractionType::Ping, .. } => {
+				info!(interaction_id = ?id, "received ping");
 				InteractionResponse { kind: InteractionResponseType::Pong, data: None }
 			}
 			Interaction {
+				id,
+				user,
+				member,
+				guild_id,
+				channel,
 				kind: InteractionType::ApplicationCommand,
 				data: Some(InteractionData::ApplicationCommand(cmd)),
 				..
 			} => {
+				let user = member.and_then(|m| m.user).or(user).expect("user must be present");
+				let channel_id = channel.map(|c| c.id);
+				info!(interaction_id = ?id, user_id = ?user.id, ?guild_id, ?channel_id, "received application command");
+
 				let CommandData { kind, name, .. } = *cmd;
 				assert_eq!(kind, CommandType::ChatInput);
 				assert_eq!(name, "typst");
@@ -84,6 +94,11 @@ impl InteractionHandler {
 			}
 			Interaction {
 				kind: InteractionType::ModalSubmit,
+				id,
+				user,
+				member,
+				guild_id,
+				channel,
 				application_id,
 				token,
 				data:
@@ -94,6 +109,10 @@ impl InteractionHandler {
 					})),
 				..
 			} => {
+				let user = member.and_then(|m| m.user).or(user).expect("user must be present");
+				let channel_id = channel.map(|c| c.id);
+				info!(interaction_id = ?id, user_id = ?user.id, ?guild_id, ?channel_id, "received modal submit");
+
 				assert_eq!(custom_id, "modal");
 
 				let action_row = components.pop().expect("modal must have at least one action row");
