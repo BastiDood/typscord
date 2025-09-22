@@ -21,6 +21,9 @@ Typscord is written in [Rust] using the [Axum] web framework for the [Tokio] run
 
 ### Loading Environment Variables
 
+> [!IMPORTANT]
+> Some environment variables are required only for scripts/automation while others are required at runtime.
+
 ```shell
 # For Nushell
 open .env | from toml | load-env
