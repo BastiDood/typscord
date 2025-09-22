@@ -1,5 +1,4 @@
 mod buffer;
-mod string;
 
 use core::time::Duration;
 use std::{path::Path, process::Stdio, sync::Arc, time::Instant};
@@ -262,17 +261,7 @@ impl InteractionHandler {
 					});
 				}
 
-				let value = {
-					// Escape internal code blocks
-					let fence = string::find_longest_streak(&value, '`');
-					if fence.len() < 3 {
-						format!("Compiled in **{elapsed_ms}ms**.\n```typst\n{value}\n```")
-					} else {
-						// Add just one last pair beyond the longest streak
-						format!("Compiled in **{elapsed_ms}ms**.\n`{fence}typst\n{value}\n{fence}`")
-					}
-				};
-
+				let value = format!("Compiled in **{elapsed_ms}ms**.");
 				http.create_ephemeral_followup_with_embeds(&value, &embeds)
 					.await
 					.expect("ephemeral followup must succeed");
@@ -285,20 +274,9 @@ impl InteractionHandler {
 				command.kill().await.expect("worker process must be killed");
 				drop(command);
 
-				let value = {
-					// Escape internal code blocks
-					let fence = string::find_longest_streak(&value, '`');
-					if fence.len() < 3 {
-						format!(
-							"Compilation timed out after **{elapsed_ms}ms**. Check your code for infinite loops and expensive operations.\n```typst\n{value}\n```"
-						)
-					} else {
-						// Add just one last pair beyond the longest streak
-						format!(
-							"Compilation timed out after **{elapsed_ms}ms**. Check your code for infinite loops and expensive operations.\n`{fence}typst\n{value}\n{fence}`"
-						)
-					}
-				};
+				let value = format!(
+					"Compilation timed out after **{elapsed_ms}ms**. Check your code for infinite loops and expensive operations."
+				);
 
 				http.update_response_with_embeds(&value, &[])
 					.await
