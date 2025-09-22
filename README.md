@@ -36,7 +36,13 @@ open .env | from toml | load-env
 
 ### Registering the Slash Commands
 
+The [`discord.json`] contains all of the [application command configurations][bulk-overwrite-global-application-commands] of the bot's supported commands.
+
+[`discord.json`]: ./discord.json
+[bulk-overwrite-global-application-commands]: https://discord.com/developers/docs/interactions/application-commands#bulk-overwrite-global-application-commands
+
 ```shell
+# To register the slash command...
 curl --request 'PUT' --header 'Content-Type: application/json' --header "Authorization: Bot $DISCORD_BOT_TOKEN" --data '@discord.json' "https://discord.com/api/v10/applications/$DISCORD_APPLICATION_ID/commands"
 ```
 
