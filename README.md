@@ -1,4 +1,8 @@
-# Environment Variables
+# Typscord
+
+A Discord bot for rendering Typst code.
+
+## Environment Variables
 
 ```shell
 # For Nushell
@@ -13,7 +17,7 @@ open .env | from toml | load-env
 | `TYPSCORD_COMPILATION_TIMEOUT` | The maximum number of seconds to wait for a Typst compilation to finish.             |    ❌    |   ✅    |
 | `PORT`                         | The TCP port to which the network socket will bind.                                  |    ❌    |   ✅    |
 
-# Registering the Slash Commands
+## Registering the Slash Commands
 
 ```shell
 curl --request 'PUT' --header 'Content-Type: application/json' --header "Authorization: Bot $DISCORD_BOT_TOKEN" --data '@discord.json' "https://discord.com/api/v10/applications/$DISCORD_APPLICATION_ID/commands"
