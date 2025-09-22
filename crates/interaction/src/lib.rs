@@ -20,7 +20,7 @@ use twilight_model::{
 		},
 	},
 	channel::message::{
-		Embed, MessageFlags,
+		Embed,
 		component::{ActionRow, Component, TextInput, TextInputStyle},
 		embed::EmbedField,
 	},
@@ -111,7 +111,6 @@ impl InteractionHandler {
 				let value = value.expect("modal text input has required value");
 				let mut content = "#set page(width: auto, height: auto, margin: 8pt)\n".to_owned();
 				content.push_str(&value);
-				drop(value);
 
 				let token = token.into_boxed_str();
 				tokio::spawn(self.subprocess(application_id, token, content.into_boxed_str()));
@@ -119,8 +118,9 @@ impl InteractionHandler {
 				InteractionResponse {
 					kind: InteractionResponseType::DeferredChannelMessageWithSource,
 					data: Some(InteractionResponseData {
-						content: Some("Rendering your Typst code...".into()),
-						flags: Some(MessageFlags::EPHEMERAL),
+						// NOTE: four backticks are required to prevent code blocks from being
+						// misinterpreted as code blocks.
+						content: Some(format!("````typst\n{value}\n````")),
 						..Default::default()
 					}),
 				}
@@ -210,57 +210,60 @@ impl InteractionHandler {
 				// Subprocess has since exited already
 				drop(command);
 
-				http.update_response_with_embeds("Rendering complete.", &{
-					let mut embeds = Vec::<Embed>::with_capacity(2);
-					if !error_embed_fields.is_empty() {
-						embeds.push(Embed {
-							author: None,
-							color: Some(0xf33f33),
-							description: None,
-							fields: error_embed_fields,
-							footer: None,
-							image: None,
-							kind: "rich".into(),
-							provider: None,
-							thumbnail: None,
-							timestamp: None,
-							title: Some("Compilation Errors".into()),
-							url: None,
-							video: None,
-						});
-					}
-					if !warning_embed_fields.is_empty() {
-						embeds.push(Embed {
-							author: None,
-							color: Some(0xf7b955),
-							description: None,
-							fields: warning_embed_fields,
-							footer: None,
-							image: None,
-							kind: "rich".into(),
-							provider: None,
-							thumbnail: None,
-							timestamp: None,
-							title: Some("Compilation Warnings".into()),
-							url: None,
-							video: None,
-						});
-					}
-					embeds
-				})
-				.await
-				.expect("original response edit must succeed");
-
+				// Replace previously rendered code block with the rendered attachment
 				if !file.is_empty() {
-					http.create_followup_with_attachments(&[Attachment {
+					http.replace_response_with_attachments(&[Attachment {
 						description: None,
 						file,
 						filename: "typst.webp".into(),
 						id: 0,
 					}])
 					.await
-					.expect("followup must succeed");
+					.expect("original response replacement must succeed");
 				}
+
+				// Send errors/warnings as an ephemeral followup
+				let mut embeds = Vec::<Embed>::with_capacity(2);
+
+				if !error_embed_fields.is_empty() {
+					embeds.push(Embed {
+						author: None,
+						color: Some(0xf33f33),
+						description: None,
+						fields: error_embed_fields,
+						footer: None,
+						image: None,
+						kind: "rich".into(),
+						provider: None,
+						thumbnail: None,
+						timestamp: None,
+						title: Some("Compilation Errors".into()),
+						url: None,
+						video: None,
+					});
+				}
+
+				if !warning_embed_fields.is_empty() {
+					embeds.push(Embed {
+						author: None,
+						color: Some(0xf7b955),
+						description: None,
+						fields: warning_embed_fields,
+						footer: None,
+						image: None,
+						kind: "rich".into(),
+						provider: None,
+						thumbnail: None,
+						timestamp: None,
+						title: Some("Compilation Warnings".into()),
+						url: None,
+						video: None,
+					});
+				}
+
+				http.create_ephemeral_followup_with_embeds("Render finished.", &embeds)
+					.await
+					.expect("ephemeral followup must succeed");
 			}
 			Err(error) => {
 				error!(?error, "timeout when compiling code");

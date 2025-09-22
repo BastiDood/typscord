@@ -6,6 +6,7 @@ use alloc::{boxed::Box, string::String};
 use twilight_http::{Client, client::InteractionClient};
 use twilight_model::{
 	channel::message::Embed,
+	channel::message::MessageFlags,
 	http::attachment::Attachment,
 	id::{Id, marker::ApplicationMarker},
 };
@@ -52,12 +53,32 @@ impl HttpInteraction<'_> {
 		Ok(())
 	}
 
-	pub async fn create_followup_with_attachments(
+	pub async fn replace_response_with_attachments(
 		&self,
 		attachments: &[Attachment],
 	) -> TwilightHttpError<()> {
 		// TODO: Log the `Message` object.
-		self.http.create_followup(&self.interaction_token).attachments(attachments).await?;
+		self.http
+			.update_response(&self.interaction_token)
+			.content(None)
+			.embeds(None)
+			.attachments(attachments)
+			.await?;
+		Ok(())
+	}
+
+	pub async fn create_ephemeral_followup_with_embeds(
+		&self,
+		content: &str,
+		embeds: &[Embed],
+	) -> TwilightHttpError<()> {
+		// TODO: Log the `Message` object.
+		self.http
+			.create_followup(&self.interaction_token)
+			.content(content)
+			.embeds(embeds)
+			.flags(MessageFlags::EPHEMERAL)
+			.await?;
 		Ok(())
 	}
 }
