@@ -4,3 +4,7 @@
 # Test Fixtures
 *.typ
 *.webp
+
+# Environment Variables/Secrets
+.env
+.env.*
