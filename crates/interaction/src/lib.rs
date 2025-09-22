@@ -1,3 +1,4 @@
+use core::time::Duration;
 use discordyst_http::{ApplicationId, Http};
 use std::{io, path::Path, process::Stdio, sync::Arc};
 use tokio::{
@@ -7,7 +8,7 @@ use tokio::{
 	},
 	process::Command,
 };
-use tracing::info;
+use tracing::{error, info};
 use twilight_model::{
 	application::{
 		command::CommandType,
@@ -129,7 +130,6 @@ impl InteractionHandler {
 		token: Box<str>,
 		value: Box<str>,
 	) {
-		// TODO: Handle timeout
 		let mut command = Command::new(self.exe_path.as_os_str())
 			.arg("worker")
 			.stdin(Stdio::piped())
@@ -148,108 +148,124 @@ impl InteractionHandler {
 		let stdout = command.stdout.take().expect("stdout must have been piped");
 		let mut stdout = BufReader::new(stdout);
 
-		let warning_count = read_usize(&mut stdout).await.expect("stdout must read warning count");
-		info!(warnings = warning_count, "read warning count");
-
-		// Shared string buffer whose capacity can be reused by everyone
-		let mut buffer = String::new();
-
-		let mut warning_embed_fields = Vec::<EmbedField>::new();
-		for _ in 0..warning_count {
-			warning_embed_fields.push(EmbedField {
-				name: read_line(&mut stdout, &mut buffer)
-					.await
-					.expect("stdout must read warning title"),
-				value: read_line(&mut stdout, &mut buffer)
-					.await
-					.expect("stdout must read warning hint"),
-				inline: false,
-			});
-		}
-
-		let error_count = read_usize(&mut stdout).await.expect("stdout must read error count");
-		info!(errors = error_count, "reading error count");
-
-		let mut error_embed_fields = Vec::<EmbedField>::new();
-		for _ in 0..error_count {
-			error_embed_fields.push(EmbedField {
-				name: read_line(&mut stdout, &mut buffer)
-					.await
-					.expect("stdout must read error title"),
-				value: read_line(&mut stdout, &mut buffer)
-					.await
-					.expect("stdout must read error hint"),
-				inline: false,
-			});
-		}
-
-		// No need for the shared buffer after this point.
-		drop(buffer);
-
-		let mut file = Vec::new();
-		stdout.read_to_end(&mut file).await.expect("stdout must be readable up to this point");
-
-		// Should close the pipe after this point
-		drop(stdout);
-
-		let status = command.wait().await.expect("worker process must exit");
-		info!(?status, "worker process exited");
-
-		// Subprocess has since exited already
-		drop(command);
-
 		let http = self.http.interaction(application_id, token);
+		match tokio::time::timeout(Duration::from_millis(1000), read_usize(&mut stdout)).await {
+			Ok(result) => {
+				let warning_count = result.expect("stdout must read warning count");
+				info!(warnings = warning_count, "read warning count");
 
-		http.update_response_with_embeds("Rendering complete.", &{
-			let mut embeds = Vec::<Embed>::with_capacity(2);
-			if !error_embed_fields.is_empty() {
-				embeds.push(Embed {
-					author: None,
-					color: Some(0xf33f33),
-					description: None,
-					fields: error_embed_fields,
-					footer: None,
-					image: None,
-					kind: "rich".into(),
-					provider: None,
-					thumbnail: None,
-					timestamp: None,
-					title: Some("Compilation Errors".into()),
-					url: None,
-					video: None,
-				});
-			}
-			if !warning_embed_fields.is_empty() {
-				embeds.push(Embed {
-					author: None,
-					color: Some(0xf7b955),
-					description: None,
-					fields: warning_embed_fields,
-					footer: None,
-					image: None,
-					kind: "rich".into(),
-					provider: None,
-					thumbnail: None,
-					timestamp: None,
-					title: Some("Compilation Warnings".into()),
-					url: None,
-					video: None,
-				});
-			}
-			embeds
-		})
-		.await
-		.expect("original response must succeed");
+				// Shared string buffer whose capacity can be reused by everyone
+				let mut buffer = String::new();
 
-		if !file.is_empty() {
-			http.create_followup_with_attachments(&[Attachment {
-				description: None,
-				file,
-				filename: "typst.webp".into(),
-				id: 0,
-			}])
-			.await
-			.expect("followup must succeed");
+				let mut warning_embed_fields = Vec::<EmbedField>::new();
+				for _ in 0..warning_count {
+					warning_embed_fields.push(EmbedField {
+						name: read_line(&mut stdout, &mut buffer)
+							.await
+							.expect("stdout must read warning title"),
+						value: read_line(&mut stdout, &mut buffer)
+							.await
+							.expect("stdout must read warning hint"),
+						inline: false,
+					});
+				}
+
+				let error_count =
+					read_usize(&mut stdout).await.expect("stdout must read error count");
+				info!(errors = error_count, "reading error count");
+
+				let mut error_embed_fields = Vec::<EmbedField>::new();
+				for _ in 0..error_count {
+					error_embed_fields.push(EmbedField {
+						name: read_line(&mut stdout, &mut buffer)
+							.await
+							.expect("stdout must read error title"),
+						value: read_line(&mut stdout, &mut buffer)
+							.await
+							.expect("stdout must read error hint"),
+						inline: false,
+					});
+				}
+
+				// No need for the shared buffer after this point.
+				drop(buffer);
+
+				let mut file = Vec::new();
+				stdout
+					.read_to_end(&mut file)
+					.await
+					.expect("stdout must be readable up to this point");
+
+				// Should close the pipe after this point
+				drop(stdout);
+
+				let status = command.wait().await.expect("worker process must exit");
+				info!(?status, "worker process exited");
+
+				// Subprocess has since exited already
+				drop(command);
+
+				http.update_response_with_embeds("Rendering complete.", &{
+					let mut embeds = Vec::<Embed>::with_capacity(2);
+					if !error_embed_fields.is_empty() {
+						embeds.push(Embed {
+							author: None,
+							color: Some(0xf33f33),
+							description: None,
+							fields: error_embed_fields,
+							footer: None,
+							image: None,
+							kind: "rich".into(),
+							provider: None,
+							thumbnail: None,
+							timestamp: None,
+							title: Some("Compilation Errors".into()),
+							url: None,
+							video: None,
+						});
+					}
+					if !warning_embed_fields.is_empty() {
+						embeds.push(Embed {
+							author: None,
+							color: Some(0xf7b955),
+							description: None,
+							fields: warning_embed_fields,
+							footer: None,
+							image: None,
+							kind: "rich".into(),
+							provider: None,
+							thumbnail: None,
+							timestamp: None,
+							title: Some("Compilation Warnings".into()),
+							url: None,
+							video: None,
+						});
+					}
+					embeds
+				})
+				.await
+				.expect("original response edit must succeed");
+
+				if !file.is_empty() {
+					http.create_followup_with_attachments(&[Attachment {
+						description: None,
+						file,
+						filename: "typst.webp".into(),
+						id: 0,
+					}])
+					.await
+					.expect("followup must succeed");
+				}
+			}
+			Err(error) => {
+				error!(?error, "timeout when compiling code");
+				http.update_response_with_embeds(
+					"Compilation took longer than a second. Check your code for infinite loops or expensive operations.",
+					&[],
+				)
+				.await
+				.expect("original response edit must succeed");
+			}
 		}
 	}
 }

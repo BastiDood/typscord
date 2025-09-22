@@ -9,8 +9,7 @@ pub fn main() -> io::Result<()> {
 	let mut content = String::new();
 
 	{
-		let mut stdin = io::stdin();
-		let size = stdin.read_to_string(&mut content)?;
+		let size = io::stdin().read_to_string(&mut content)?;
 		info!(%size, "read content from stdin");
 	}
 
@@ -23,8 +22,7 @@ pub fn main() -> io::Result<()> {
 	// Only show the most important warnings
 	warnings.truncate(MAX_DIAGNOSTIC_COUNT);
 
-	let stdout = io::stdout();
-	let mut stdout = stdout.lock();
+	let mut stdout = io::stdout().lock();
 
 	stdout.write_all(&warning_count.to_be_bytes())?; // warnings
 	for SourceDiagnostic { message, hints, .. } in warnings {
