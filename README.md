@@ -46,12 +46,18 @@ The [`discord.json`] contains all of the [application command configurations][bu
 curl --request 'PUT' --header 'Content-Type: application/json' --header "Authorization: Bot $DISCORD_BOT_TOKEN" --data '@discord.json' "https://discord.com/api/v10/applications/$DISCORD_APPLICATION_ID/commands"
 ```
 
-## Running the Server
+### Running the Server
 
 ```shell
 # Make sure all the environment variables are properly set!
 cargo run --release
 ```
+
+## Legal
+
+The Typscord project is licensed under the [GNU Affero General Public License v3.0](./LICENSE). However, some files (e.g., brand assets) are exceptions that have been licensed under different terms and limitations. See the [`COPYING.md`] file for more details.
+
+[`COPYING.md`]: ./COPYING.md
 
 ## Special Thanks
 
