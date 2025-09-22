@@ -7,8 +7,7 @@ use axum::{
 	routing, serve,
 };
 use bytes::BytesMut;
-use core::net::Ipv4Addr;
-use core::{future, time::Duration};
+use core::{future, net::Ipv4Addr, time::Duration};
 use ed25519_dalek::{Signature, VerifyingKey};
 use futures_util::TryStreamExt as _;
 use std::{env, sync::Arc};
@@ -44,6 +43,7 @@ pub fn main() -> Result<()> {
 	info!(exe = %exe_path.display(), "executable path found");
 
 	let app = Router::new()
+		.route("/", routing::get(handle_health_check))
 		.route("/discord/interaction", routing::post(handle_discord_interaction))
 		.with_state(KeyState {
 			public_key: Arc::new(public_key),
@@ -64,6 +64,10 @@ pub fn main() -> Result<()> {
 		serve(listener, app).await?;
 		Ok(())
 	})
+}
+
+fn handle_health_check() -> future::Ready<StatusCode> {
+	future::ready(StatusCode::OK)
 }
 
 #[derive(Clone)]
