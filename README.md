@@ -2,7 +2,7 @@
 
 A Discord bot for rendering Typst code.
 
-## Environment Variables
+## Loading Environment Variables
 
 ```shell
 # For Nushell
@@ -22,3 +22,9 @@ open .env | from toml | load-env
 ```shell
 curl --request 'PUT' --header 'Content-Type: application/json' --header "Authorization: Bot $DISCORD_BOT_TOKEN" --data '@discord.json' "https://discord.com/api/v10/applications/$DISCORD_APPLICATION_ID/commands"
 ```
+
+## Special Thanks
+
+- [`mattfbacon/typst-bot`] for being an invaluable resource/example of invoking Typst as a library within a Discord bot. Many abstractions in Typscord were inspired by the prior art.
+
+[`mattfbacon/typst-bot`]: https://github.com/mattfbacon/typst-bot
