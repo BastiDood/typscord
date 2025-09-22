@@ -33,5 +33,5 @@ tracing.workspace = true
 tracing-subscriber = { version = "0.3", default-features = false, features = ["ansi", "fmt", "local-time", "env-filter", "smallvec"] }
 
 [profile.release]
-lto = "thin"
+lto = "fat"
 strip = true
