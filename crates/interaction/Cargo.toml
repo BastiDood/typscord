@@ -1,10 +1,10 @@
 [package]
-name = "discordyst-interaction"
+name = "typscord-interaction"
 version = "0.1.0"
 edition.workspace = true
 
 [dependencies]
-discordyst-http.workspace = true
+typscord-http.workspace = true
 serde_json = { version = "1", default-features = false }
 tokio = { version = "1.47", features = ["rt", "process", "io-util"] }
 tracing.workspace = true

@@ -1,5 +1,4 @@
 use core::time::Duration;
-use discordyst_http::{ApplicationId, Http};
 use std::{io, path::Path, process::Stdio, sync::Arc};
 use tokio::{
 	io::{
@@ -30,6 +29,7 @@ use twilight_model::{
 		interaction::{InteractionResponseData, InteractionResponseType},
 	},
 };
+use typscord_http::{ApplicationId, Http};
 
 pub use twilight_model::http::interaction::InteractionResponse;
 

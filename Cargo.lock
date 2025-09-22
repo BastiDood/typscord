@@ -644,58 +644,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "discordyst"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum",
- "bytes",
- "discordyst-interaction",
- "discordyst-world",
- "ed25519-dalek",
- "futures-util",
- "hex",
- "serde_json",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "discordyst-http"
-version = "0.1.0"
-dependencies = [
- "twilight-http",
- "twilight-model",
-]
-
-[[package]]
-name = "discordyst-interaction"
-version = "0.1.0"
-dependencies = [
- "discordyst-http",
- "serde_json",
- "tokio",
- "tracing",
- "twilight-http",
- "twilight-model",
-]
-
-[[package]]
-name = "discordyst-world"
-version = "0.1.0"
-dependencies = [
- "bytemuck",
- "ecow",
- "image",
- "time",
- "ttf-parser 0.25.1",
- "typst",
- "typst-assets",
- "typst-render",
-]
-
-[[package]]
 name = "displaydoc"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3368,6 +3316,58 @@ name = "typenum"
 version = "1.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1dccffe3ce07af9386bfd29e80c0ab1a8205a2fc34e4bcd40364df902cfa8f3f"
+
+[[package]]
+name = "typscord"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "bytes",
+ "ed25519-dalek",
+ "futures-util",
+ "hex",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "typscord-interaction",
+ "typscord-world",
+]
+
+[[package]]
+name = "typscord-http"
+version = "0.1.0"
+dependencies = [
+ "twilight-http",
+ "twilight-model",
+]
+
+[[package]]
+name = "typscord-interaction"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "tokio",
+ "tracing",
+ "twilight-http",
+ "twilight-model",
+ "typscord-http",
+]
+
+[[package]]
+name = "typscord-world"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "ecow",
+ "image",
+ "time",
+ "ttf-parser 0.25.1",
+ "typst",
+ "typst-assets",
+ "typst-render",
+]
 
 [[package]]
 name = "typst"

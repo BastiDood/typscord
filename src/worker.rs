@@ -1,6 +1,6 @@
-use discordyst_world::{Render, SourceDiagnostic, Warned, World};
 use std::io::{self, Read as _, Write as _};
 use tracing::info;
+use typscord_world::{Render, SourceDiagnostic, Warned, World};
 
 /// Discord only allows up to 25 fields per embed.
 pub const MAX_DIAGNOSTIC_COUNT: usize = 25;

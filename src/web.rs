@@ -9,12 +9,12 @@ use axum::{
 use bytes::BytesMut;
 use core::future;
 use core::net::Ipv4Addr;
-use discordyst_interaction::{InteractionHandler, InteractionResponse};
 use ed25519_dalek::{Signature, VerifyingKey};
 use futures_util::TryStreamExt as _;
 use std::{env, sync::Arc};
 use tokio::{net::TcpListener, runtime::Builder};
 use tracing::error;
+use typscord_interaction::{InteractionHandler, InteractionResponse};
 
 pub fn main() -> Result<()> {
 	let port: u16 = env::var("PORT")
