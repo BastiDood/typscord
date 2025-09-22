@@ -260,7 +260,7 @@ impl InteractionHandler {
 			Err(error) => {
 				error!(?error, "timeout when compiling code");
 				http.update_response_with_embeds(
-					"Compilation took longer than a second. Check your code for infinite loops or expensive operations.",
+					"Compilation took longer than a second. Check your code for infinite loops and expensive operations.",
 					&[],
 				)
 				.await
