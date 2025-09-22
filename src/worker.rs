@@ -2,6 +2,9 @@ use discordyst_world::{Render, SourceDiagnostic, Warned, World};
 use std::io::{self, Read as _, Write as _};
 use tracing::info;
 
+/// Discord only allows up to 25 fields per embed.
+pub const MAX_DIAGNOSTIC_COUNT: usize = 25;
+
 pub fn main() -> io::Result<()> {
 	let mut content = String::new();
 
@@ -12,10 +15,13 @@ pub fn main() -> io::Result<()> {
 	}
 
 	let world = World::from_single_source(content);
-	let Warned { output, warnings } = world.render();
+	let Warned { output, mut warnings } = world.render();
 
 	let warning_count = warnings.len();
 	info!(warnings = warning_count, "document render complete");
+
+	// Only show the most important warnings
+	warnings.truncate(MAX_DIAGNOSTIC_COUNT);
 
 	let stdout = io::stdout();
 	let mut stdout = stdout.lock();
@@ -35,12 +41,14 @@ pub fn main() -> io::Result<()> {
 			let buffer_size = buffer.len(); // image
 			info!(size = buffer_size, "image rendered");
 
-			stdout.write_all(&buffer_size.to_be_bytes())?;
 			stdout.write_all(&buffer)?;
 		}
-		Err(errors) => {
+		Err(mut errors) => {
 			let error_count = errors.len();
 			info!(errors = error_count, "errors encountered");
+
+			// Only show the most important errors
+			errors.truncate(MAX_DIAGNOSTIC_COUNT);
 
 			stdout.write_all(&error_count.to_be_bytes())?; // errors
 			for SourceDiagnostic { message, hints, .. } in errors {

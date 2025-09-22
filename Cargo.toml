@@ -8,6 +8,7 @@ edition = "2024"
 discordyst-http.path = "./crates/http"
 discordyst-interaction.path = "./crates/interaction"
 discordyst-world.path = "./crates/world"
+futures-util = { version = "0.3", default-features = false }
 tracing = { version = "0.1", default-features = false }
 twilight-http = "0.16"
 twilight-model = "0.16"
@@ -24,7 +25,7 @@ bytes = { version = "1.10", default-features = false }
 discordyst-interaction.workspace = true
 discordyst-world.workspace = true
 ed25519-dalek = "2.1"
-futures-util = { version = "0.3", default-features = false }
+futures-util.workspace = true
 hex = "0.4"
 serde_json = { version = "1", default-features = false }
 tokio = { version = "1.47", features = ["rt-multi-thread", "net", "time"] }

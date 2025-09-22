@@ -2,33 +2,42 @@
 
 extern crate alloc;
 
-use alloc::string::String;
-use twilight_http::Client;
-use twilight_model::id::{Id, marker::ApplicationMarker};
-
-pub use twilight_model::{channel::message::Embed, http::attachment::Attachment};
+use alloc::{boxed::Box, string::String};
+use twilight_http::{Client, client::InteractionClient};
+use twilight_model::{
+	channel::message::Embed,
+	http::attachment::Attachment,
+	id::{Id, marker::ApplicationMarker},
+};
 
 pub type ApplicationId = Id<ApplicationMarker>;
 
-pub struct Http<'token> {
+pub struct Http {
 	http: Client,
-	application_id: ApplicationId,
-	interaction_token: &'token str,
 }
 
 type TwilightHttpError<T> = Result<T, twilight_http::Error>;
 
-impl<'token> Http<'token> {
-	pub fn new(
-		bot_token: String,
+impl Http {
+	pub fn new(bot_token: String) -> Self {
+		Self { http: Client::new(bot_token) }
+	}
+
+	pub fn interaction<'token>(
+		&'token self,
 		application_id: ApplicationId,
-		interaction_token: &'token str,
-	) -> Self {
-		Self { http: Client::new(bot_token), application_id, interaction_token }
+		interaction_token: Box<str>,
+	) -> HttpInteraction<'token> {
+		HttpInteraction { http: self.http.interaction(application_id), interaction_token }
 	}
 }
 
-impl Http<'_> {
+pub struct HttpInteraction<'http> {
+	http: InteractionClient<'http>,
+	interaction_token: Box<str>,
+}
+
+impl HttpInteraction<'_> {
 	pub async fn update_response_with_embeds(
 		&self,
 		content: &str,
@@ -36,10 +45,9 @@ impl Http<'_> {
 	) -> TwilightHttpError<()> {
 		// TODO: Log the `Message` object.
 		self.http
-			.interaction(self.application_id)
-			.update_response(self.interaction_token)
+			.update_response(&self.interaction_token)
+			.content(Some(&content))
 			.embeds(Some(embeds))
-			.content(Some(content))
 			.await?;
 		Ok(())
 	}
@@ -49,11 +57,7 @@ impl Http<'_> {
 		attachments: &[Attachment],
 	) -> TwilightHttpError<()> {
 		// TODO: Log the `Message` object.
-		self.http
-			.interaction(self.application_id)
-			.create_followup(self.interaction_token)
-			.attachments(attachments)
-			.await?;
+		self.http.create_followup(&self.interaction_token).attachments(attachments).await?;
 		Ok(())
 	}
 }

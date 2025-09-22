@@ -9,7 +9,7 @@ use axum::{
 use bytes::BytesMut;
 use core::future;
 use core::net::Ipv4Addr;
-use discordyst_interaction::InteractionResponse;
+use discordyst_interaction::{InteractionHandler, InteractionResponse};
 use ed25519_dalek::{Signature, VerifyingKey};
 use futures_util::TryStreamExt as _;
 use std::{env, sync::Arc};
@@ -21,6 +21,9 @@ pub fn main() -> Result<()> {
 		.context("PORT must be set")?
 		.parse()
 		.context("PORT must be a valid port number")?;
+
+	let discord_bot_token =
+		env::var("DISCORD_BOT_TOKEN").context("DISCORD_BOT_TOKEN must be set")?;
 	let discord_public_key =
 		env::var("DISCORD_PUBLIC_KEY").context("DISCORD_PUBLIC_KEY must be set")?;
 
@@ -32,9 +35,13 @@ pub fn main() -> Result<()> {
 			.context("DISCORD_PUBLIC_KEY must be valid point under ZIP-215 rules")?
 	};
 
+	let exe_path = env::current_exe()?.into_boxed_path();
 	let app = Router::new()
 		.route("/discord/interaction", routing::post(handle_discord_interaction))
-		.with_state(AppState(Arc::new(public_key)));
+		.with_state(KeyState {
+			public_key: Arc::new(public_key),
+			interaction_handler: Arc::new(InteractionHandler::new(exe_path, discord_bot_token)),
+		});
 
 	let runtime = Builder::new_current_thread().enable_io().enable_time().build()?;
 	runtime.block_on(async {
@@ -45,10 +52,13 @@ pub fn main() -> Result<()> {
 }
 
 #[derive(Clone)]
-struct AppState(Arc<VerifyingKey>);
+struct KeyState {
+	public_key: Arc<VerifyingKey>,
+	interaction_handler: Arc<InteractionHandler>,
+}
 
 async fn handle_discord_interaction(
-	State(AppState(public_key)): State<AppState>,
+	State(KeyState { public_key, interaction_handler }): State<KeyState>,
 	request: Request,
 ) -> Result<Json<InteractionResponse>, StatusCode> {
 	let (Parts { headers, .. }, body) = request.into_parts();
@@ -91,5 +101,5 @@ async fn handle_discord_interaction(
 		StatusCode::BAD_REQUEST
 	})?;
 
-	Ok(Json(discordyst_interaction::handle(interaction)))
+	Ok(Json(interaction_handler.handle(interaction)))
 }
