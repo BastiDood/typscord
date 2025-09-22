@@ -1,0 +1,11 @@
+.vscode
+target
+
+# Environment Variables/Secrets
+**/.env
+**/.env.*
+
+discord.json
+fly.toml
+README.md
+rustfmt.toml
