@@ -8,6 +8,9 @@ _Typesetting for @everyone._
 
 [Typst]: https://typst.app/
 
+> [!IMPORTANT]
+> External third-party packages and fonts are currently unsupported.
+
 ## Development Setup
 
 Typscord is written in [Rust] using the [Axum] web framework for the [Tokio] runtime. Compiling and rendering is powered by the official [Typst] library bindings.
