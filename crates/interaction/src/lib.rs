@@ -1,10 +1,10 @@
+mod buffer;
+mod string;
+
 use core::time::Duration;
-use std::{io, path::Path, process::Stdio, sync::Arc};
+use std::{path::Path, process::Stdio, sync::Arc};
 use tokio::{
-	io::{
-		AsyncBufRead, AsyncBufReadExt as _, AsyncRead, AsyncReadExt as _, AsyncWriteExt as _,
-		BufReader,
-	},
+	io::{AsyncReadExt as _, AsyncWriteExt as _, BufReader},
 	process::Command,
 };
 use tracing::{error, info};
@@ -112,6 +112,17 @@ impl InteractionHandler {
 				let mut content = "#set page(width: auto, height: auto, margin: 8pt)\n".to_owned();
 				content.push_str(&value);
 
+				let value = {
+					// Escape internal code blocks
+					let fence = string::find_longest_streak(&value, '`');
+					if fence.len() < 3 {
+						format!("```typst\n{value}\n```")
+					} else {
+						// Add just one last pair beyond the longest streak
+						format!("`{fence}typst\n{value}\n{fence}`")
+					}
+				};
+
 				let token = token.into_boxed_str();
 				tokio::spawn(self.subprocess(application_id, token, content.into_boxed_str()));
 
@@ -120,7 +131,7 @@ impl InteractionHandler {
 					data: Some(InteractionResponseData {
 						// NOTE: four backticks are required to prevent code blocks from being
 						// misinterpreted as code blocks.
-						content: Some(format!("````typst\n{value}\n````")),
+						content: Some(value),
 						..Default::default()
 					}),
 				}
@@ -154,7 +165,8 @@ impl InteractionHandler {
 		let mut stdout = BufReader::new(stdout);
 
 		let http = self.http.interaction(application_id, token);
-		match tokio::time::timeout(self.compilation_timeout, read_usize(&mut stdout)).await {
+		match tokio::time::timeout(self.compilation_timeout, buffer::read_usize(&mut stdout)).await
+		{
 			Ok(result) => {
 				let warning_count = result.expect("stdout must read warning count");
 				info!(warnings = warning_count, "read warning count");
@@ -165,10 +177,10 @@ impl InteractionHandler {
 				let mut warning_embed_fields = Vec::<EmbedField>::new();
 				for _ in 0..warning_count {
 					warning_embed_fields.push(EmbedField {
-						name: read_line(&mut stdout, &mut buffer)
+						name: buffer::read_line(&mut stdout, &mut buffer)
 							.await
 							.expect("stdout must read warning title"),
-						value: read_line(&mut stdout, &mut buffer)
+						value: buffer::read_line(&mut stdout, &mut buffer)
 							.await
 							.expect("stdout must read warning hint"),
 						inline: false,
@@ -176,16 +188,16 @@ impl InteractionHandler {
 				}
 
 				let error_count =
-					read_usize(&mut stdout).await.expect("stdout must read error count");
+					buffer::read_usize(&mut stdout).await.expect("stdout must read error count");
 				info!(errors = error_count, "reading error count");
 
 				let mut error_embed_fields = Vec::<EmbedField>::new();
 				for _ in 0..error_count {
 					error_embed_fields.push(EmbedField {
-						name: read_line(&mut stdout, &mut buffer)
+						name: buffer::read_line(&mut stdout, &mut buffer)
 							.await
 							.expect("stdout must read error title"),
-						value: read_line(&mut stdout, &mut buffer)
+						value: buffer::read_line(&mut stdout, &mut buffer)
 							.await
 							.expect("stdout must read error hint"),
 						inline: false,
@@ -282,20 +294,4 @@ impl InteractionHandler {
 			}
 		}
 	}
-}
-
-async fn read_usize<R: AsyncRead + Unpin>(reader: &mut R) -> io::Result<usize> {
-	let mut bytes = 0usize.to_be_bytes();
-	reader.read_exact(&mut bytes).await?;
-	Ok(usize::from_be_bytes(bytes))
-}
-
-async fn read_line<R: AsyncBufRead + Unpin>(
-	reader: &mut R,
-	buffer: &mut String,
-) -> io::Result<String> {
-	reader.read_line(buffer).await?;
-	let line = buffer.trim().to_owned();
-	buffer.clear();
-	Ok(line)
 }
