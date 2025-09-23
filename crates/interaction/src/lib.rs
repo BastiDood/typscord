@@ -19,7 +19,7 @@ use twilight_model::{
 		},
 	},
 	channel::message::{
-		Embed, EmojiReactionType,
+		Embed, EmojiReactionType, MessageFlags,
 		component::{ActionRow, Button, ButtonStyle, Component, TextInput, TextInputStyle},
 		embed::{EmbedAuthor, EmbedField, EmbedFooter},
 	},
@@ -72,6 +72,98 @@ impl InteractionHandler {
 					"Enter your Typst code here. Third-party packages are not yet supported.";
 
 				match name.as_str() {
+					"help" => InteractionResponse {
+						kind: InteractionResponseType::ChannelMessageWithSource,
+						data: Some(InteractionResponseData {
+							flags: Some(MessageFlags::EPHEMERAL),
+							components: Some(vec![Component::ActionRow(ActionRow {
+								components: vec![
+									Component::Button(Button {
+										style: ButtonStyle::Link,
+										emoji: Some(EmojiReactionType::Unicode {
+											name: String::from('🐛'),
+										}),
+										label: Some(String::from("Report a Bug")),
+										url: Some("https://github.com/BastiDood/typscord/issues/new".into()),
+										custom_id: None,
+										sku_id: None,
+										disabled: false,
+									}),
+									Component::Button(Button {
+										style: ButtonStyle::Link,
+										emoji: Some(EmojiReactionType::Unicode {
+											name: String::from('💻'),
+										}),
+										label: Some(String::from("Fork the Code")),
+										url: Some("https://github.com/BastiDood/typscord/fork".into()),
+										custom_id: None,
+										sku_id: None,
+										disabled: false,
+									}),
+								],
+							})]),
+							embeds: Some(vec![Embed {
+								author: Some(EmbedAuthor {
+									name: "Typscord".into(),
+									url: Some("https://github.com/BastiDood/typscord".into()),
+									icon_url: Some(
+										"https://cdn.discordapp.com/avatars/1419611139448377366/ba3831b151e2c1868c0b7a8ad6d46146.png".into(),
+									),
+									proxy_icon_url: None,
+								}),
+								color: Some(0x7ad5d5),
+								description: Some(
+									"The `/typst` command is the main entry point to using Typscord. The command opens a modal that allows you to write Typst code in Discord. Upon submission, the Typst code will be rendered as an image in Discord. However, there are some limitations about the generated image.".into(),
+								),
+								fields: vec![
+									EmbedField {
+										name: "You may want to copy your Typst code before hitting submit.".into(),
+										value: "Just in case the bot fails to respond, you can always paste your code back into the modal. It's not ideal, but it's the best we have for now.".into(),
+										inline: false,
+									},
+									EmbedField {
+										name: "Third-party packages are unsupported.".into(),
+										value: "This is mostly for hosting and security reasons.".into(),
+										inline: false,
+									},
+									EmbedField {
+										name: "Image uploads are unsupported.".into(),
+										value: "This requires that I allow users to add image attachments (which they can reference as relative paths in the Typst code), but I haven't gotten to that yet.".into(),
+										inline: false,
+									},
+									EmbedField {
+										name: "Only stock Typst fonts are supported.".into(),
+										value: "Note that some emojis will fail to load.".into(),
+										inline: false,
+									},
+									EmbedField {
+										name: "The rendered image will be as wide as possible.".into(),
+										value: "This unfortunately disables automatic line breaks. To opt into automatic line breaks, you have to wrap the code in a `#box` with the desired `width` yourself.".into(),
+										inline: false,
+									},
+									EmbedField {
+										name: "Compilations that take longer than a second will be timed out.".into(),
+										value: "The bot is fast, but please don't abuse it with infinite loops, expensive compute, or anything like that. I'm hosting the service for free, and would greatly appreciate it if everyone played fair.".into(),
+										inline: false,
+									},
+								],
+								footer: Some(EmbedFooter {
+									text: "By BastiDood".into(),
+									icon_url: Some("https://avatars.githubusercontent.com/u/39114273".into()),
+									proxy_icon_url: None,
+								}),
+								image: None,
+								kind: "rich".into(),
+								provider: None,
+								thumbnail: None,
+								timestamp: None,
+								title: Some("How to Use Typscord".into()),
+								url: None,
+								video: None,
+							}]),
+							..Default::default()
+						}),
+					},
 					"info" => InteractionResponse {
 						kind: InteractionResponseType::ChannelMessageWithSource,
 						data: Some(InteractionResponseData {
