@@ -33,12 +33,12 @@ pub fn main() -> io::Result<()> {
 
 	match output {
 		Ok(Render { buffer, .. }) => {
-			// communicate that there is no error
-			stdout.write_all(&0usize.to_be_bytes())?;
-
 			let buffer_size = buffer.len(); // image
 			info!(size = buffer_size, "image rendered");
+			assert!(buffer_size < 1024 * 1024 * 8, "maximum file size exceeded"); // 8 MiB
 
+			// communicate that there is no error
+			stdout.write_all(&0usize.to_be_bytes())?;
 			stdout.write_all(&buffer)?;
 		}
 		Err(mut errors) => {
