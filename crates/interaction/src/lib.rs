@@ -1,10 +1,10 @@
 mod buffer;
 
 use core::time::Duration;
-use std::{path::Path, process::Stdio, sync::Arc, time::Instant};
+use std::{io, path::Path, process::Stdio, sync::Arc, time::Instant};
 use tokio::{
-	io::{AsyncReadExt as _, AsyncWriteExt as _, BufReader},
-	process::Command,
+	io::{AsyncBufRead, AsyncReadExt as _, AsyncWriteExt as _, BufReader},
+	process::{Child, Command},
 };
 use tracing::{error, info};
 use twilight_model::{
@@ -246,7 +246,7 @@ impl InteractionHandler {
 									custom_id: "code".into(),
 									label: "Typst Code".into(),
 									style: TextInputStyle::Paragraph,
-									max_length: Some(1500),
+									max_length: Some(4000),
 									placeholder: Some(CODE_PLACEHOLDER.into()),
 									required: Some(true),
 									value: None,
@@ -344,117 +344,35 @@ impl InteractionHandler {
 
 		let http = self.http.interaction(application_id, token);
 		match result {
-			Ok(result) => {
-				let warning_count = result.expect("stdout must read warning count");
-				info!(warnings = warning_count, "read warning count");
+			Ok(result) => match Self::critical_section(stdout, command, result).await {
+				Ok((file, embeds)) => {
+					// Replace previously rendered code block with the rendered attachment
+					if !file.is_empty() {
+						http.replace_response_with_attachments(&[Attachment {
+							description: None,
+							file,
+							filename: "typst.webp".into(),
+							id: 0,
+						}])
+						.await
+						.expect("original response replacement must succeed");
+					}
 
-				// Shared string buffer whose capacity can be reused by everyone
-				let mut buffer = String::new();
-
-				let mut warning_embed_fields = Vec::<EmbedField>::new();
-				for _ in 0..warning_count {
-					warning_embed_fields.push(EmbedField {
-						name: buffer::read_line(&mut stdout, &mut buffer)
-							.await
-							.expect("stdout must read warning title"),
-						value: buffer::read_line(&mut stdout, &mut buffer)
-							.await
-							.expect("stdout must read warning hint"),
-						inline: false,
-					});
+					let value = format!("Compiled in **{elapsed_ms}ms**.");
+					http.create_ephemeral_followup_with_embeds(&value, &embeds)
+						.await
+						.expect("ephemeral followup must succeed");
 				}
-
-				let error_count =
-					buffer::read_usize(&mut stdout).await.expect("stdout must read error count");
-				info!(errors = error_count, "reading error count");
-
-				let mut error_embed_fields = Vec::<EmbedField>::new();
-				for _ in 0..error_count {
-					error_embed_fields.push(EmbedField {
-						name: buffer::read_line(&mut stdout, &mut buffer)
-							.await
-							.expect("stdout must read error title"),
-						value: buffer::read_line(&mut stdout, &mut buffer)
-							.await
-							.expect("stdout must read error hint"),
-						inline: false,
-					});
-				}
-
-				// No need for the shared buffer after this point.
-				drop(buffer);
-
-				let mut file = Vec::new();
-				stdout
-					.read_to_end(&mut file)
+				Err(error) => {
+					error!(?error, "worker process crashed");
+					http.update_response_with_embeds(
+						"The Typst renderer crashed. Please try again with simpler input.",
+						&[],
+					)
 					.await
-					.expect("stdout must be readable up to this point");
-
-				// Should close the pipe after this point
-				drop(stdout);
-
-				let status = command.wait().await.expect("worker process must exit");
-				info!(?status, "worker process exited");
-
-				// Subprocess has since exited already
-				drop(command);
-
-				// Replace previously rendered code block with the rendered attachment
-				if !file.is_empty() {
-					http.replace_response_with_attachments(&[Attachment {
-						description: None,
-						file,
-						filename: "typst.webp".into(),
-						id: 0,
-					}])
-					.await
-					.expect("original response replacement must succeed");
+					.expect("original followup must succeed");
 				}
-
-				// Send errors/warnings as an ephemeral followup
-				let mut embeds = Vec::<Embed>::with_capacity(2);
-
-				if !error_embed_fields.is_empty() {
-					embeds.push(Embed {
-						author: None,
-						color: Some(0xf33f33),
-						description: None,
-						fields: error_embed_fields,
-						footer: None,
-						image: None,
-						kind: "rich".into(),
-						provider: None,
-						thumbnail: None,
-						timestamp: None,
-						title: Some("Compilation Errors".into()),
-						url: None,
-						video: None,
-					});
-				}
-
-				if !warning_embed_fields.is_empty() {
-					embeds.push(Embed {
-						author: None,
-						color: Some(0xf7b955),
-						description: None,
-						fields: warning_embed_fields,
-						footer: None,
-						image: None,
-						kind: "rich".into(),
-						provider: None,
-						thumbnail: None,
-						timestamp: None,
-						title: Some("Compilation Warnings".into()),
-						url: None,
-						video: None,
-					});
-				}
-
-				let value = format!("Compiled in **{elapsed_ms}ms**.");
-				http.create_ephemeral_followup_with_embeds(&value, &embeds)
-					.await
-					.expect("ephemeral followup must succeed");
-			}
+			},
 			Err(error) => {
 				error!(?error, "timeout when compiling code");
 
@@ -472,5 +390,93 @@ impl InteractionHandler {
 					.expect("original response edit must succeed");
 			}
 		}
+	}
+
+	async fn critical_section<Stdout: AsyncBufRead + Unpin>(
+		mut stdout: Stdout,
+		mut command: Child,
+		warning_count: io::Result<usize>,
+	) -> io::Result<(Vec<u8>, Vec<Embed>)> {
+		let warning_count = warning_count?;
+		info!(warnings = warning_count, "read warning count");
+
+		// Shared string buffer whose capacity can be reused by everyone
+		let mut buffer = String::new();
+
+		let mut warning_embed_fields = Vec::<EmbedField>::new();
+		for _ in 0..warning_count {
+			warning_embed_fields.push(EmbedField {
+				name: buffer::read_line(&mut stdout, &mut buffer).await?,
+				value: buffer::read_line(&mut stdout, &mut buffer).await?,
+				inline: false,
+			});
+		}
+
+		let error_count = buffer::read_usize(&mut stdout).await?;
+		info!(errors = error_count, "reading error count");
+
+		let mut error_embed_fields = Vec::<EmbedField>::new();
+		for _ in 0..error_count {
+			error_embed_fields.push(EmbedField {
+				name: buffer::read_line(&mut stdout, &mut buffer).await?,
+				value: buffer::read_line(&mut stdout, &mut buffer).await?,
+				inline: false,
+			});
+		}
+
+		// No need for the shared buffer after this point.
+		drop(buffer);
+
+		let mut file = Vec::new();
+		stdout.read_to_end(&mut file).await?;
+
+		// Should close the pipe after this point
+		drop(stdout);
+
+		// Subprocess has since exited already
+		let status = command.wait().await?;
+		info!(?status, "worker process exited");
+		drop(command);
+
+		// Send errors/warnings as an ephemeral followup
+		let mut embeds = Vec::<Embed>::with_capacity(2);
+
+		if !error_embed_fields.is_empty() {
+			embeds.push(Embed {
+				author: None,
+				color: Some(0xf33f33),
+				description: None,
+				fields: error_embed_fields,
+				footer: None,
+				image: None,
+				kind: "rich".into(),
+				provider: None,
+				thumbnail: None,
+				timestamp: None,
+				title: Some("Compilation Errors".into()),
+				url: None,
+				video: None,
+			});
+		}
+
+		if !warning_embed_fields.is_empty() {
+			embeds.push(Embed {
+				author: None,
+				color: Some(0xf7b955),
+				description: None,
+				fields: warning_embed_fields,
+				footer: None,
+				image: None,
+				kind: "rich".into(),
+				provider: None,
+				thumbnail: None,
+				timestamp: None,
+				title: Some("Compilation Warnings".into()),
+				url: None,
+				video: None,
+			});
+		}
+
+		Ok((file, embeds))
 	}
 }
