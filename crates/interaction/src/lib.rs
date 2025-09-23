@@ -19,9 +19,9 @@ use twilight_model::{
 		},
 	},
 	channel::message::{
-		Embed,
-		component::{ActionRow, Component, TextInput, TextInputStyle},
-		embed::EmbedField,
+		Embed, EmojiReactionType,
+		component::{ActionRow, Button, ButtonStyle, Component, TextInput, TextInputStyle},
+		embed::{EmbedAuthor, EmbedField, EmbedFooter},
 	},
 	http::{
 		attachment::Attachment,
@@ -89,6 +89,78 @@ impl InteractionHandler {
 									min_length: None,
 								})],
 							})]),
+							..Default::default()
+						}),
+					},
+					"info" => InteractionResponse {
+						kind: InteractionResponseType::ChannelMessageWithSource,
+						data: Some(InteractionResponseData {
+							allowed_mentions: None,
+							components: Some(vec![Component::ActionRow(ActionRow {
+								components: vec![
+									Component::Button(Button {
+										style: ButtonStyle::Link,
+										emoji: Some(EmojiReactionType::Unicode {
+											name: String::from('🤖'),
+										}),
+										label: Some(String::from("Install App")),
+										url: Some("https://discord.com/oauth2/authorize?client_id=1419611139448377366".into()),
+										custom_id: None,
+										sku_id: None,
+										disabled: false,
+									}),
+									Component::Button(Button {
+										style: ButtonStyle::Link,
+										emoji: Some(EmojiReactionType::Unicode {
+											name: String::from('🐛'),
+										}),
+										label: Some(String::from("Report a Bug")),
+										url: Some("https://github.com/BastiDood/typscord/issues/new".into()),
+										custom_id: None,
+										sku_id: None,
+										disabled: false,
+									}),
+									Component::Button(Button {
+										style: ButtonStyle::Link,
+										emoji: Some(EmojiReactionType::Unicode {
+											name: String::from('💻'),
+										}),
+										label: Some(String::from("Fork the Code")),
+										url: Some("https://github.com/BastiDood/typscord/fork".into()),
+										custom_id: None,
+										sku_id: None,
+										disabled: false,
+									}),
+								],
+							})]),
+							embeds: Some(vec![Embed {
+								author: Some(EmbedAuthor {
+									name: "Typscord".into(),
+									url: Some("https://github.com/BastiDood/typscord".into()),
+									icon_url: Some(
+										"https://cdn.discordapp.com/avatars/1419611139448377366/ba3831b151e2c1868c0b7a8ad6d46146.png".into(),
+									),
+									proxy_icon_url: None,
+								}),
+								color: Some(0x7ad5d5),
+								description: Some(
+									"Typscord is a [free and open-source](https://github.com/BastiDood/typscord) Discord bot written in [Rust](https://www.rust-lang.org/) by [`@BastiDood`](https://github.com/BastiDood) for rendering [Typst](https://typst.app/) code.".into(),
+								),
+								fields: Vec::new(),
+								footer: Some(EmbedFooter {
+									text: "By BastiDood".into(),
+									icon_url: Some("https://avatars.githubusercontent.com/u/39114273".into()),
+									proxy_icon_url: None,
+								}),
+								image: None,
+								kind: "rich".into(),
+								provider: None,
+								thumbnail: None,
+								timestamp: None,
+								title: Some("Typesetting for @everyone...".into()),
+								url: None,
+								video: None,
+							}]),
 							..Default::default()
 						}),
 					},
