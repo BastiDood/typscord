@@ -66,31 +66,37 @@ impl InteractionHandler {
 
 				let CommandData { kind, name, .. } = *cmd;
 				assert_eq!(kind, CommandType::ChatInput);
-				assert_eq!(name, "typst");
-				InteractionResponse {
-				kind: InteractionResponseType::Modal,
-				data: Some(InteractionResponseData {
-					custom_id: Some("modal".into()),
-					title: Some("Render Typst Code".into()),
-					components: Some(vec![
-						Component::ActionRow(ActionRow {
-							components: vec![
-								Component::TextInput(TextInput {
+
+				// Just some constant strings that will be useful for commands later.
+				const CODE_PLACEHOLDER: &str =
+					"Enter your Typst code here. Third-party packages are not yet supported.";
+
+				match name.as_str() {
+					"typst" => InteractionResponse {
+						kind: InteractionResponseType::Modal,
+						data: Some(InteractionResponseData {
+							custom_id: Some("modal".into()),
+							title: Some("Render Typst Code".into()),
+							components: Some(vec![Component::ActionRow(ActionRow {
+								components: vec![Component::TextInput(TextInput {
 									custom_id: "code".into(),
 									label: "Typst Code".into(),
 									style: TextInputStyle::Paragraph,
 									max_length: Some(4000),
-									placeholder: Some("Enter your Typst code here. Third-party packages are not yet supported.".into()),
+									placeholder: Some(CODE_PLACEHOLDER.into()),
 									required: Some(true),
 									value: None,
 									min_length: None,
-								}),
-							],
+								})],
+							})]),
+							..Default::default()
 						}),
-					]),
-					..Default::default()
-				}),
-			}
+					},
+					name => {
+						error!(name, "unknown command");
+						unreachable!("unknown command");
+					}
+				}
 			}
 			Interaction {
 				kind: InteractionType::ModalSubmit,
