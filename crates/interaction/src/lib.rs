@@ -344,8 +344,11 @@ impl InteractionHandler {
 
 		let http = self.http.interaction(application_id, token);
 		match result {
-			Ok(result) => match Self::critical_section(stdout, command, result).await {
+			Ok(result) => match Self::critical_section(stdout, &mut command, result).await {
 				Ok((file, embeds)) => {
+					// Should have exited by now
+					drop(command);
+
 					// Replace previously rendered code block with the rendered attachment
 					if !file.is_empty() {
 						http.replace_response_with_attachments(&[Attachment {
@@ -365,6 +368,10 @@ impl InteractionHandler {
 				}
 				Err(error) => {
 					error!(?error, "worker process crashed");
+
+					// Reap the resources from the child process for proper garbage collection
+					command.kill().await.expect("crashed worker process must be killed");
+
 					http.update_response_with_embeds(
 						"The Typst renderer crashed. Please try again with simpler input.",
 						&[],
@@ -378,7 +385,7 @@ impl InteractionHandler {
 
 				// We need to preemptively kill the process or else we'll risk running infinite
 				// loops in the background.
-				command.kill().await.expect("worker process must be killed");
+				command.kill().await.expect("lagging worker process must be killed");
 				drop(command);
 
 				let value = format!(
@@ -394,7 +401,7 @@ impl InteractionHandler {
 
 	async fn critical_section<Stdout: AsyncBufRead + Unpin>(
 		mut stdout: Stdout,
-		mut command: Child,
+		command: &mut Child,
 		warning_count: io::Result<usize>,
 	) -> io::Result<(Vec<u8>, Vec<Embed>)> {
 		let warning_count = warning_count?;
@@ -436,7 +443,6 @@ impl InteractionHandler {
 		// Subprocess has since exited already
 		let status = command.wait().await?;
 		info!(?status, "worker process exited");
-		drop(command);
 
 		// Send errors/warnings as an ephemeral followup
 		let mut embeds = Vec::<Embed>::with_capacity(2);
