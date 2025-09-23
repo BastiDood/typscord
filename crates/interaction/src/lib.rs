@@ -246,7 +246,7 @@ impl InteractionHandler {
 									custom_id: "code".into(),
 									label: "Typst Code".into(),
 									style: TextInputStyle::Paragraph,
-									max_length: Some(4000),
+									max_length: Some(1500),
 									placeholder: Some(CODE_PLACEHOLDER.into()),
 									required: Some(true),
 									value: None,
