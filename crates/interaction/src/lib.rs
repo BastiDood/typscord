@@ -72,26 +72,6 @@ impl InteractionHandler {
 					"Enter your Typst code here. Third-party packages are not yet supported.";
 
 				match name.as_str() {
-					"typst" => InteractionResponse {
-						kind: InteractionResponseType::Modal,
-						data: Some(InteractionResponseData {
-							custom_id: Some("modal".into()),
-							title: Some("Render Typst Code".into()),
-							components: Some(vec![Component::ActionRow(ActionRow {
-								components: vec![Component::TextInput(TextInput {
-									custom_id: "code".into(),
-									label: "Typst Code".into(),
-									style: TextInputStyle::Paragraph,
-									max_length: Some(4000),
-									placeholder: Some(CODE_PLACEHOLDER.into()),
-									required: Some(true),
-									value: None,
-									min_length: None,
-								})],
-							})]),
-							..Default::default()
-						}),
-					},
 					"info" => InteractionResponse {
 						kind: InteractionResponseType::ChannelMessageWithSource,
 						data: Some(InteractionResponseData {
@@ -161,6 +141,26 @@ impl InteractionHandler {
 								url: None,
 								video: None,
 							}]),
+							..Default::default()
+						}),
+					},
+					"typst" => InteractionResponse {
+						kind: InteractionResponseType::Modal,
+						data: Some(InteractionResponseData {
+							custom_id: Some("modal".into()),
+							title: Some("Render Typst Code".into()),
+							components: Some(vec![Component::ActionRow(ActionRow {
+								components: vec![Component::TextInput(TextInput {
+									custom_id: "code".into(),
+									label: "Typst Code".into(),
+									style: TextInputStyle::Paragraph,
+									max_length: Some(4000),
+									placeholder: Some(CODE_PLACEHOLDER.into()),
+									required: Some(true),
+									value: None,
+									min_length: None,
+								})],
+							})]),
 							..Default::default()
 						}),
 					},
