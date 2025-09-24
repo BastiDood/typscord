@@ -6,7 +6,7 @@ use tokio::{
 	io::{AsyncBufRead, AsyncReadExt as _, AsyncWriteExt as _, BufReader},
 	process::{Child, Command},
 };
-use tracing::{error, info};
+use tracing::{error, info, instrument};
 use twilight_model::{
 	application::{
 		command::CommandType,
@@ -44,6 +44,7 @@ impl InteractionHandler {
 	}
 
 	#[must_use]
+	#[instrument(skip(self))]
 	pub fn handle(self: Arc<Self>, interaction: Interaction) -> InteractionResponse {
 		match interaction {
 			Interaction { id, kind: InteractionType::Ping, .. } => {
@@ -312,6 +313,7 @@ impl InteractionHandler {
 		}
 	}
 
+	#[instrument(skip(self))]
 	async fn subprocess(
 		self: Arc<Self>,
 		application_id: ApplicationId,
@@ -399,6 +401,7 @@ impl InteractionHandler {
 		}
 	}
 
+	#[instrument(skip_all)]
 	async fn critical_section<Stdout: AsyncBufRead + Unpin>(
 		mut stdout: Stdout,
 		command: &mut Child,

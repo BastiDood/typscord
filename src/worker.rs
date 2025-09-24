@@ -1,10 +1,11 @@
 use std::io::{self, Read as _, Write as _};
-use tracing::info;
+use tracing::{error, info, instrument};
 use typscord_world::{Render, SourceDiagnostic, Warned, World};
 
 /// Discord only allows up to 25 fields per embed.
 pub const MAX_DIAGNOSTIC_COUNT: usize = 25;
 
+#[instrument]
 pub fn main() -> io::Result<()> {
 	let mut content = String::new();
 
@@ -35,7 +36,12 @@ pub fn main() -> io::Result<()> {
 		Ok(Render { buffer, .. }) => {
 			let buffer_size = buffer.len(); // image
 			info!(size = buffer_size, "image rendered");
-			assert!(buffer_size < 1024 * 1024 * 8, "maximum file size exceeded"); // 8 MiB
+
+			if buffer_size >= 1024 * 1024 * 8 {
+				// 8 MiB is Discord's limit.
+				error!(size = buffer_size, "maximum file size exceeded");
+				return Err(io::ErrorKind::FileTooLarge.into());
+			}
 
 			// communicate that there is no error
 			stdout.write_all(&0usize.to_be_bytes())?;

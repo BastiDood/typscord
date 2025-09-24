@@ -3,6 +3,7 @@
 extern crate alloc;
 
 use alloc::{boxed::Box, string::String};
+use tracing::{info, instrument};
 use twilight_http::{Client, client::InteractionClient};
 use twilight_model::{
 	channel::message::Embed,
@@ -24,6 +25,7 @@ impl Http {
 		Self { http: Client::new(bot_token) }
 	}
 
+	#[instrument(skip(self))]
 	pub fn interaction<'token>(
 		&'token self,
 		application_id: ApplicationId,
@@ -39,46 +41,52 @@ pub struct HttpInteraction<'http> {
 }
 
 impl HttpInteraction<'_> {
+	#[instrument(skip(self))]
 	pub async fn update_response_with_embeds(
 		&self,
 		content: &str,
 		embeds: &[Embed],
 	) -> TwilightHttpError<()> {
-		// TODO: Log the `Message` object.
-		self.http
+		let message = self
+			.http
 			.update_response(&self.interaction_token)
 			.content(Some(content))
 			.embeds(Some(embeds))
 			.await?;
+		info!(?message, "response updated with embeds");
 		Ok(())
 	}
 
+	#[instrument(skip(self))]
 	pub async fn replace_response_with_attachments(
 		&self,
 		attachments: &[Attachment],
 	) -> TwilightHttpError<()> {
-		// TODO: Log the `Message` object.
-		self.http
+		let message = self
+			.http
 			.update_response(&self.interaction_token)
 			.content(None)
 			.embeds(None)
 			.attachments(attachments)
 			.await?;
+		info!(?message, "response replaced with attachments");
 		Ok(())
 	}
 
+	#[instrument(skip(self))]
 	pub async fn create_ephemeral_followup_with_embeds(
 		&self,
 		content: &str,
 		embeds: &[Embed],
 	) -> TwilightHttpError<()> {
-		// TODO: Log the `Message` object.
-		self.http
+		let message = self
+			.http
 			.create_followup(&self.interaction_token)
 			.content(content)
 			.embeds(embeds)
 			.flags(MessageFlags::EPHEMERAL)
 			.await?;
+		info!(?message, "ephemeral followup created");
 		Ok(())
 	}
 }

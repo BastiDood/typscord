@@ -12,9 +12,10 @@ use ed25519_dalek::{Signature, VerifyingKey};
 use futures_util::TryStreamExt as _;
 use std::{env, sync::Arc};
 use tokio::{net::TcpListener, runtime::Builder};
-use tracing::{error, info};
+use tracing::{error, info, instrument};
 use typscord_interaction::{InteractionHandler, InteractionResponse};
 
+#[instrument]
 pub fn main() -> Result<()> {
 	let port: u16 = env::var("PORT")
 		.context("PORT must be set")?
@@ -76,6 +77,7 @@ struct KeyState {
 	interaction_handler: Arc<InteractionHandler>,
 }
 
+#[instrument(skip_all)]
 async fn handle_discord_interaction(
 	State(KeyState { public_key, interaction_handler }): State<KeyState>,
 	request: Request,
