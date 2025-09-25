@@ -6,7 +6,7 @@ use tokio::{
 	io::{AsyncBufRead, AsyncReadExt as _, AsyncWriteExt as _, BufReader},
 	process::{Child, Command},
 };
-use tracing::{error, info, instrument};
+use tracing::{error, info, instrument, trace};
 use twilight_model::{
 	application::{
 		command::CommandType,
@@ -44,7 +44,7 @@ impl InteractionHandler {
 	}
 
 	#[must_use]
-	#[instrument(skip(self))]
+	#[instrument(skip_all)]
 	pub fn handle(self: Arc<Self>, interaction: Interaction) -> InteractionResponse {
 		match interaction {
 			Interaction { id, kind: InteractionType::Ping, .. } => {
@@ -296,13 +296,16 @@ impl InteractionHandler {
 
 				assert_eq!(custom_id, "code");
 
-				// We prefix a `#set page` directive at the last part so that the user cannot override it.
 				let value = value.expect("modal text input has required value");
-				let mut content = "#set page(width: auto, height: auto, margin: 12pt)\n".to_owned();
+
+				static TYPST_PREAMBLE: &'static str = include_str!("preamble.typ");
+				let mut content = TYPST_PREAMBLE.to_owned();
 				content.push_str(&value);
 
 				let token = token.into_boxed_str();
-				tokio::spawn(self.subprocess(application_id, token, content.into_boxed_str()));
+				let handle =
+					tokio::spawn(self.subprocess(application_id, token, content.into_boxed_str()));
+				trace!(?handle, "spawned subprocess");
 
 				InteractionResponse {
 					kind: InteractionResponseType::DeferredChannelMessageWithSource,
@@ -326,6 +329,8 @@ impl InteractionHandler {
 			.stdout(Stdio::piped())
 			.spawn()
 			.expect("worker process must be spawned");
+
+		// TODO: attachment_size_limit
 
 		command
 			.stdin
