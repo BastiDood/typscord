@@ -1,5 +1,5 @@
 app = 'typscord'
-primary_region = 'hkg'
+primary_region = 'sin'
 
 [deploy]
 strategy = 'bluegreen'
