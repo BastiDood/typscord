@@ -12,7 +12,7 @@ use twilight_model::{
 		command::CommandType,
 		interaction::{
 			Interaction, InteractionData, InteractionType,
-			application_command::CommandData,
+			application_command::{CommandData, CommandDataOption, CommandOptionValue},
 			modal::{
 				ModalInteractionData, ModalInteractionDataActionRow, ModalInteractionDataComponent,
 			},
@@ -65,7 +65,7 @@ impl InteractionHandler {
 				let channel_id = channel.map(|c| c.id);
 				info!(interaction_id = ?id, user_id = ?user.id, ?guild_id, ?channel_id, "received application command");
 
-				let CommandData { kind, name, .. } = *cmd;
+				let CommandData { kind, name, mut options, .. } = *cmd;
 				assert_eq!(kind, CommandType::ChatInput);
 
 				// Just some constant strings that will be useful for commands later.
@@ -240,7 +240,19 @@ impl InteractionHandler {
 					"typst" => InteractionResponse {
 						kind: InteractionResponseType::Modal,
 						data: Some(InteractionResponseData {
-							custom_id: Some("modal".into()),
+							custom_id: Some({
+								let spoiler = options
+									.pop()
+									.map(|CommandDataOption { name, value }| match (name.as_str(), value) {
+										("spoiler", CommandOptionValue::Boolean(value)) => value,
+										(name, value) => {
+											error!(name, ?value, "unexpected option");
+											unreachable!("unexpected option \"{name}\" with {value:?}");
+										}
+									})
+									.unwrap_or_default();
+								From::from(if spoiler { "spoiler" } else { "normal" })
+							}),
 							title: Some("Render Typst Code".into()),
 							components: Some(vec![Component::ActionRow(ActionRow {
 								components: vec![Component::TextInput(TextInput {
@@ -284,7 +296,15 @@ impl InteractionHandler {
 				let channel_id = channel.map(|c| c.id);
 				info!(interaction_id = ?id, user_id = ?user.id, ?guild_id, ?channel_id, "received modal submit");
 
-				assert_eq!(custom_id, "modal");
+				// Extract spoiler option from custom_id
+				let spoiler = match custom_id.as_str() {
+					"normal" => false,
+					"spoiler" => true,
+					mode => {
+						error!(mode, "unexpected custom_id spoiler option");
+						unreachable!("unexpected custom_id mode \"{mode}\"");
+					}
+				};
 
 				let action_row = components.pop().expect("modal must have at least one action row");
 				assert!(components.is_empty(), "modal must have exactly one action row");
@@ -298,13 +318,17 @@ impl InteractionHandler {
 
 				let value = value.expect("modal text input has required value");
 
-				static TYPST_PREAMBLE: &'static str = include_str!("preamble.typ");
+				static TYPST_PREAMBLE: &str = include_str!("preamble.typ");
 				let mut content = TYPST_PREAMBLE.to_owned();
 				content.push_str(&value);
 
 				let token = token.into_boxed_str();
-				let handle =
-					tokio::spawn(self.subprocess(application_id, token, content.into_boxed_str()));
+				let handle = tokio::spawn(self.subprocess(
+					application_id,
+					token,
+					content.into_boxed_str(),
+					spoiler,
+				));
 				trace!(?handle, "spawned subprocess");
 
 				InteractionResponse {
@@ -322,6 +346,7 @@ impl InteractionHandler {
 		application_id: ApplicationId,
 		token: Box<str>,
 		value: Box<str>,
+		spoiler: bool,
 	) {
 		let mut command = Command::new(self.exe_path.as_os_str())
 			.arg("worker")
@@ -361,7 +386,11 @@ impl InteractionHandler {
 						http.replace_response_with_attachments(&[Attachment {
 							description: None,
 							file,
-							filename: "typst.webp".into(),
+							filename: From::from(if spoiler {
+								"SPOILER_typst.webp"
+							} else {
+								"typst.webp"
+							}),
 							id: 0,
 						}])
 						.await
