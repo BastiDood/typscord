@@ -67,7 +67,9 @@ pub fn main() -> Result<()> {
 	})
 }
 
+#[instrument]
 fn handle_health_check() -> future::Ready<StatusCode> {
+	info!("health check");
 	future::ready(StatusCode::OK)
 }
 
