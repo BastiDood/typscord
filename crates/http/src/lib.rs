@@ -25,7 +25,6 @@ impl Http {
 		Self { http: Client::new(bot_token) }
 	}
 
-	#[instrument(skip(self))]
 	pub fn interaction<'token>(
 		&'token self,
 		application_id: ApplicationId,
@@ -41,7 +40,7 @@ pub struct HttpInteraction<'http> {
 }
 
 impl HttpInteraction<'_> {
-	#[instrument(skip(self))]
+	#[instrument(skip(self), level = "trace")]
 	pub async fn update_response_with_embeds(
 		&self,
 		content: &str,
@@ -57,7 +56,7 @@ impl HttpInteraction<'_> {
 		Ok(())
 	}
 
-	#[instrument(skip(self))]
+	#[instrument(skip(self), level = "trace")]
 	pub async fn replace_response_with_attachments(
 		&self,
 		attachments: &[Attachment],
@@ -73,7 +72,7 @@ impl HttpInteraction<'_> {
 		Ok(())
 	}
 
-	#[instrument(skip(self))]
+	#[instrument(skip(self), level = "trace")]
 	pub async fn create_ephemeral_followup_with_embeds(
 		&self,
 		content: &str,
