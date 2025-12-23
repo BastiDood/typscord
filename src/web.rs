@@ -43,25 +43,25 @@ pub fn main() -> Result<()> {
 	let exe_path = env::current_exe()?.into_boxed_path();
 	info!(exe = %exe_path.display(), "executable path found");
 
-	let app = Router::new()
-		.route("/", routing::get(handle_health_check))
-		.route("/discord/interaction", routing::post(handle_discord_interaction))
-		.with_state(KeyState {
-			public_key: Arc::new(public_key),
-			interaction_handler: Arc::new(InteractionHandler::new(
-				Duration::from_millis(typscord_compilation_timeout),
-				exe_path,
-				discord_bot_token,
-			)),
-		});
-
-	let runtime = Builder::new_current_thread().enable_io().enable_time().build()?;
-	runtime.block_on(async {
+	Builder::new_current_thread().enable_io().enable_time().build()?.block_on(async {
 		let listener = TcpListener::bind((Ipv4Addr::UNSPECIFIED, port)).await?;
 		{
 			let address = listener.local_addr()?;
 			info!(%address, "listening on local address");
 		}
+
+		let app = Router::new()
+			.route("/", routing::get(handle_health_check))
+			.route("/discord/interaction", routing::post(handle_discord_interaction))
+			.with_state(KeyState {
+				public_key: Arc::new(public_key),
+				interaction_handler: Arc::new(InteractionHandler::new(
+					Duration::from_millis(typscord_compilation_timeout),
+					exe_path,
+					discord_bot_token,
+				)),
+			});
+
 		serve(listener, app).await?;
 		Ok(())
 	})
