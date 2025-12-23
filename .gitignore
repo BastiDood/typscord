@@ -1,6 +1,8 @@
 /.vscode
 /target
 
+**/.claude/**.local.json
+
 # Environment Variables/Secrets
 .env
 .env.*
