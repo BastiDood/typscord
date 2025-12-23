@@ -14,7 +14,7 @@ use twilight_model::{
 			Interaction, InteractionData, InteractionType,
 			application_command::{CommandData, CommandDataOption, CommandOptionValue},
 			modal::{
-				ModalInteractionActionRow, ModalInteractionComponent, ModalInteractionData,
+				ModalInteractionComponent, ModalInteractionData, ModalInteractionLabel,
 				ModalInteractionTextInput,
 			},
 		},
@@ -70,8 +70,7 @@ impl InteractionHandler {
 				assert_eq!(kind, CommandType::ChatInput);
 
 				// Just some constant strings that will be useful for commands later.
-				const CODE_PLACEHOLDER: &str =
-					"Enter your Typst code here. Third-party packages are not yet supported.";
+				const CODE_PLACEHOLDER: &str = "Hello, Typst!";
 
 				match name.as_str() {
 					"help" => InteractionResponse {
@@ -248,6 +247,7 @@ impl InteractionHandler {
 					"typst" => InteractionResponse {
 						kind: InteractionResponseType::Modal,
 						data: Some(InteractionResponseData {
+							flags: Some(MessageFlags::IS_COMPONENTS_V2),
 							custom_id: Some({
 								let spoiler = options
 									.pop()
@@ -262,27 +262,24 @@ impl InteractionHandler {
 								From::from(if spoiler { "spoiler" } else { "normal" })
 							}),
 							title: Some("Render Typst Code".into()),
-							components: Some(vec![Component::ActionRow(ActionRow {
+							components: Some(vec![Component::Label(Label {
 								id: None,
-								components: vec![Component::Label(Label {
+								label: "Typst Code".into(),
+								description: Some(
+									"Third-party packages and images aren't supported yet. Long compilations will be aborted.".into(),
+								),
+								component: Box::new(Component::TextInput(TextInput {
 									id: None,
-									label: "Typst Code".into(),
-									description: Some(
-										"Plugins and images aren't supported yet. Long compilations will be aborted.".into(),
-									),
-									component: Box::new(Component::TextInput(TextInput {
-										id: None,
-										custom_id: "code".into(),
-										#[expect(deprecated, reason = "not actually used")]
-										label: None,
-										style: TextInputStyle::Paragraph,
-										max_length: Some(4000),
-										placeholder: Some(CODE_PLACEHOLDER.into()),
-										required: Some(true),
-										value: None,
-										min_length: None,
-									})),
-								})],
+									custom_id: "code".into(),
+									#[expect(deprecated, reason = "not actually used")]
+									label: None,
+									style: TextInputStyle::Paragraph,
+									max_length: Some(4000),
+									placeholder: Some(CODE_PLACEHOLDER.into()),
+									required: Some(true),
+									value: None,
+									min_length: None,
+								})),
 							})]),
 							..Default::default()
 						}),
@@ -321,17 +318,15 @@ impl InteractionHandler {
 					}
 				};
 
-				let action_row = components.pop().expect("modal must have at least one action row");
-				assert!(components.is_empty(), "modal must have exactly one action row");
-
-				let ModalInteractionActionRow { mut components, .. } = match action_row {
-					ModalInteractionComponent::ActionRow(row) => row,
-					_ => unreachable!("expected action row component"),
-				};
-				let component = components.pop().expect("modal must have at least one component");
+				let label = components.pop().expect("modal must have at least one component");
 				assert!(components.is_empty(), "modal must have exactly one component");
 
-				let ModalInteractionTextInput { custom_id, value, .. } = match component {
+				let ModalInteractionLabel { component, .. } = match label {
+					ModalInteractionComponent::Label(label) => label,
+					_ => unreachable!("expected label component"),
+				};
+
+				let ModalInteractionTextInput { custom_id, value, .. } = match *component {
 					ModalInteractionComponent::TextInput(input) => input,
 					_ => unreachable!("expected text input component"),
 				};
