@@ -10,8 +10,8 @@ typscord-interaction.path = "./crates/interaction"
 typscord-world.path = "./crates/world"
 futures-util = { version = "0.3", default-features = false }
 tracing = { version = "0.1", default-features = false, features = ["attributes"] }
-twilight-http = "0.16"
-twilight-model = "0.16"
+twilight-http = "0.17"
+twilight-model = "0.17"
 
 [package]
 name = "typscord"
