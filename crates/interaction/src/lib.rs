@@ -14,13 +14,14 @@ use twilight_model::{
 			Interaction, InteractionData, InteractionType,
 			application_command::{CommandData, CommandDataOption, CommandOptionValue},
 			modal::{
-				ModalInteractionData, ModalInteractionDataActionRow, ModalInteractionDataComponent,
+				ModalInteractionActionRow, ModalInteractionComponent, ModalInteractionData,
+				ModalInteractionTextInput,
 			},
 		},
 	},
 	channel::message::{
 		Embed, EmojiReactionType, MessageFlags,
-		component::{ActionRow, Button, ButtonStyle, Component, TextInput, TextInputStyle},
+		component::{ActionRow, Button, ButtonStyle, Component, Label, TextInput, TextInputStyle},
 		embed::{EmbedAuthor, EmbedField, EmbedFooter},
 	},
 	http::{
@@ -78,8 +79,10 @@ impl InteractionHandler {
 						data: Some(InteractionResponseData {
 							flags: Some(MessageFlags::EPHEMERAL),
 							components: Some(vec![Component::ActionRow(ActionRow {
+								id: None,
 								components: vec![
 									Component::Button(Button {
+										id: None,
 										style: ButtonStyle::Link,
 										emoji: Some(EmojiReactionType::Unicode {
 											name: String::from('🐛'),
@@ -91,6 +94,7 @@ impl InteractionHandler {
 										disabled: false,
 									}),
 									Component::Button(Button {
+										id: None,
 										style: ButtonStyle::Link,
 										emoji: Some(EmojiReactionType::Unicode {
 											name: String::from('💻'),
@@ -170,8 +174,10 @@ impl InteractionHandler {
 						data: Some(InteractionResponseData {
 							allowed_mentions: None,
 							components: Some(vec![Component::ActionRow(ActionRow {
+								id: None,
 								components: vec![
 									Component::Button(Button {
+										id: None,
 										style: ButtonStyle::Link,
 										emoji: Some(EmojiReactionType::Unicode {
 											name: String::from('🤖'),
@@ -183,6 +189,7 @@ impl InteractionHandler {
 										disabled: false,
 									}),
 									Component::Button(Button {
+										id: None,
 										style: ButtonStyle::Link,
 										emoji: Some(EmojiReactionType::Unicode {
 											name: String::from('🐛'),
@@ -194,6 +201,7 @@ impl InteractionHandler {
 										disabled: false,
 									}),
 									Component::Button(Button {
+										id: None,
 										style: ButtonStyle::Link,
 										emoji: Some(EmojiReactionType::Unicode {
 											name: String::from('💻'),
@@ -255,15 +263,25 @@ impl InteractionHandler {
 							}),
 							title: Some("Render Typst Code".into()),
 							components: Some(vec![Component::ActionRow(ActionRow {
-								components: vec![Component::TextInput(TextInput {
-									custom_id: "code".into(),
+								id: None,
+								components: vec![Component::Label(Label {
+									id: None,
 									label: "Typst Code".into(),
-									style: TextInputStyle::Paragraph,
-									max_length: Some(4000),
-									placeholder: Some(CODE_PLACEHOLDER.into()),
-									required: Some(true),
-									value: None,
-									min_length: None,
+									description: Some(
+										"Plugins and images aren't supported yet. Long compilations will be aborted.".into(),
+									),
+									component: Box::new(Component::TextInput(TextInput {
+										id: None,
+										custom_id: "code".into(),
+										#[expect(deprecated, reason = "not actually used")]
+										label: None,
+										style: TextInputStyle::Paragraph,
+										max_length: Some(4000),
+										placeholder: Some(CODE_PLACEHOLDER.into()),
+										required: Some(true),
+										value: None,
+										min_length: None,
+									})),
 								})],
 							})]),
 							..Default::default()
@@ -284,14 +302,11 @@ impl InteractionHandler {
 				channel,
 				application_id,
 				token,
-				data:
-					Some(InteractionData::ModalSubmit(ModalInteractionData {
-						custom_id,
-						mut components,
-						..
-					})),
+				data: Some(InteractionData::ModalSubmit(modal_data)),
 				..
 			} => {
+				let ModalInteractionData { custom_id, mut components, .. } = *modal_data;
+
 				let user = member.and_then(|m| m.user).or(user).expect("user must be present");
 				let channel_id = channel.map(|c| c.id);
 				info!(interaction_id = ?id, user_id = ?user.id, ?guild_id, ?channel_id, "received modal submit");
@@ -309,14 +324,19 @@ impl InteractionHandler {
 				let action_row = components.pop().expect("modal must have at least one action row");
 				assert!(components.is_empty(), "modal must have exactly one action row");
 
-				let ModalInteractionDataActionRow { mut components } = action_row;
-				let ModalInteractionDataComponent { custom_id, value, .. } =
-					components.pop().expect("modal must have at least one component");
+				let ModalInteractionActionRow { mut components, .. } = match action_row {
+					ModalInteractionComponent::ActionRow(row) => row,
+					_ => unreachable!("expected action row component"),
+				};
+				let component = components.pop().expect("modal must have at least one component");
 				assert!(components.is_empty(), "modal must have exactly one component");
 
-				assert_eq!(custom_id, "code");
+				let ModalInteractionTextInput { custom_id, value, .. } = match component {
+					ModalInteractionComponent::TextInput(input) => input,
+					_ => unreachable!("expected text input component"),
+				};
 
-				let value = value.expect("modal text input has required value");
+				assert_eq!(custom_id, "code");
 
 				static TYPST_PREAMBLE: &str = include_str!("preamble.typ");
 				let mut content = TYPST_PREAMBLE.to_owned();
