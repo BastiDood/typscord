@@ -49,6 +49,9 @@ The [`discord.json`] contains all of the [application command configurations][bu
 curl --request 'PUT' --header 'Content-Type: application/json' --header "Authorization: Bot $DISCORD_BOT_TOKEN" --data '@discord.json' "https://discord.com/api/v10/applications/$DISCORD_APPLICATION_ID/commands"
 ```
 
+> [!NOTE]
+> See the Nushell script [`register.nu`](./register.nu) for convenience.
+
 ### Running the Server
 
 ```shell
