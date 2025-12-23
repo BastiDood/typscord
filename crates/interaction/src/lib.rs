@@ -12,16 +12,19 @@ use twilight_model::{
 		command::CommandType,
 		interaction::{
 			Interaction, InteractionData, InteractionType,
-			application_command::{CommandData, CommandDataOption, CommandOptionValue},
+			application_command::CommandData,
 			modal::{
 				ModalInteractionComponent, ModalInteractionData, ModalInteractionLabel,
-				ModalInteractionTextInput,
+				ModalInteractionStringSelect, ModalInteractionTextInput,
 			},
 		},
 	},
 	channel::message::{
 		Embed, EmojiReactionType, MessageFlags,
-		component::{ActionRow, Button, ButtonStyle, Component, Label, TextInput, TextInputStyle},
+		component::{
+			ActionRow, Button, ButtonStyle, Component, Label, SelectMenu, SelectMenuOption,
+			SelectMenuType, TextInput, TextInputStyle,
+		},
 		embed::{EmbedAuthor, EmbedField, EmbedFooter},
 	},
 	http::{
@@ -66,7 +69,7 @@ impl InteractionHandler {
 				let channel_id = channel.map(|c| c.id);
 				info!(interaction_id = ?id, user_id = ?user.id, ?guild_id, ?channel_id, "received application command");
 
-				let CommandData { kind, name, mut options, .. } = *cmd;
+				let CommandData { kind, name, .. } = *cmd;
 				assert_eq!(kind, CommandType::ChatInput);
 
 				// Just some constant strings that will be useful for commands later.
@@ -248,39 +251,64 @@ impl InteractionHandler {
 						kind: InteractionResponseType::Modal,
 						data: Some(InteractionResponseData {
 							flags: Some(MessageFlags::IS_COMPONENTS_V2),
-							custom_id: Some({
-								let spoiler = options
-									.pop()
-									.map(|CommandDataOption { name, value }| match (name.as_str(), value) {
-										("spoiler", CommandOptionValue::Boolean(value)) => value,
-										(name, value) => {
-											error!(name, ?value, "unexpected option");
-											unreachable!("unexpected option \"{name}\" with {value:?}");
-										}
-									})
-									.unwrap_or_default();
-								From::from(if spoiler { "spoiler" } else { "normal" })
-							}),
+							custom_id: Some("typst".into()),
 							title: Some("Render Typst Code".into()),
-							components: Some(vec![Component::Label(Label {
-								id: None,
-								label: "Typst Code".into(),
-								description: Some(
-									"Third-party packages and images aren't supported yet. Long compilations will be aborted.".into(),
-								),
-								component: Box::new(Component::TextInput(TextInput {
+							components: Some(vec![
+								Component::Label(Label {
 									id: None,
-									custom_id: "code".into(),
-									#[expect(deprecated, reason = "not actually used")]
-									label: None,
-									style: TextInputStyle::Paragraph,
-									max_length: Some(4000),
-									placeholder: Some(CODE_PLACEHOLDER.into()),
-									required: Some(true),
-									value: None,
-									min_length: None,
-								})),
-							})]),
+									label: "Typst Code".into(),
+									description: Some(
+										"Third-party packages and images aren't supported yet. Long compilations will be aborted.".into(),
+									),
+									component: Box::new(Component::TextInput(TextInput {
+										id: None,
+										custom_id: "code".into(),
+										#[expect(deprecated, reason = "not actually used")]
+										label: None,
+										style: TextInputStyle::Paragraph,
+										max_length: Some(4000),
+										placeholder: Some(CODE_PLACEHOLDER.into()),
+										required: Some(true),
+										value: None,
+										min_length: None,
+									})),
+								}),
+								Component::Label(Label {
+									id: None,
+									label: "Mark as Spoiler?".into(),
+									description: Some(
+										"Whether to hide the rendered image behind a spoiler.".into(),
+									),
+									component: Box::new(Component::SelectMenu(SelectMenu {
+										id: None,
+										custom_id: "spoiler".into(),
+										kind: SelectMenuType::Text,
+										disabled: false,
+										options: Some(vec![
+											SelectMenuOption {
+												default: true,
+												description: None,
+												emoji: None,
+												label: "No".into(),
+												value: "no".into(),
+											},
+											SelectMenuOption {
+												default: false,
+												description: None,
+												emoji: None,
+												label: "Yes".into(),
+												value: "yes".into(),
+											},
+										]),
+										placeholder: None,
+										min_values: None,
+										max_values: None,
+										default_values: None,
+										channel_types: None,
+										required: None,
+									})),
+								}),
+							]),
 							..Default::default()
 						}),
 					},
@@ -302,36 +330,44 @@ impl InteractionHandler {
 				data: Some(InteractionData::ModalSubmit(modal_data)),
 				..
 			} => {
-				let ModalInteractionData { custom_id, mut components, .. } = *modal_data;
+				let ModalInteractionData { custom_id, components, .. } = *modal_data;
 
 				let user = member.and_then(|m| m.user).or(user).expect("user must be present");
 				let channel_id = channel.map(|c| c.id);
 				info!(interaction_id = ?id, user_id = ?user.id, ?guild_id, ?channel_id, "received modal submit");
 
-				// Extract spoiler option from custom_id
-				let spoiler = match custom_id.as_str() {
-					"normal" => false,
-					"spoiler" => true,
-					mode => {
-						error!(mode, "unexpected custom_id spoiler option");
-						unreachable!("unexpected custom_id mode \"{mode}\"");
+				assert_eq!(custom_id, "typst");
+
+				// Extract code from Label > TextInput and spoiler from Label > StringSelect
+				let mut code: Option<String> = None;
+				let mut spoiler = false;
+
+				for component in components {
+					let ModalInteractionLabel { component: inner, .. } = match component {
+						ModalInteractionComponent::Label(label) => label,
+						_ => continue,
+					};
+
+					match *inner {
+						ModalInteractionComponent::TextInput(ModalInteractionTextInput {
+							custom_id,
+							value,
+							..
+						}) if custom_id == "code" => {
+							code = Some(value);
+						}
+						ModalInteractionComponent::StringSelect(ModalInteractionStringSelect {
+							custom_id,
+							values,
+							..
+						}) if custom_id == "spoiler" => {
+							spoiler = values.first().is_some_and(|v| v == "yes");
+						}
+						_ => {}
 					}
-				};
+				}
 
-				let label = components.pop().expect("modal must have at least one component");
-				assert!(components.is_empty(), "modal must have exactly one component");
-
-				let ModalInteractionLabel { component, .. } = match label {
-					ModalInteractionComponent::Label(label) => label,
-					_ => unreachable!("expected label component"),
-				};
-
-				let ModalInteractionTextInput { custom_id, value, .. } = match *component {
-					ModalInteractionComponent::TextInput(input) => input,
-					_ => unreachable!("expected text input component"),
-				};
-
-				assert_eq!(custom_id, "code");
+				let value = code.expect("code input must be present");
 
 				static TYPST_PREAMBLE: &str = include_str!("preamble.typ");
 				let mut content = TYPST_PREAMBLE.to_owned();

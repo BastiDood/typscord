@@ -15,14 +15,6 @@
 		"type": 1,
 		"name": "typst",
 		"contexts": [0, 1, 2],
-		"description": "Render Typst code.",
-		"options": [
-			{
-				"type": 5,
-				"name": "spoiler",
-				"description": "Whether to publish the rendered image as a spoiler. Defaults to false.",
-				"required": false
-			}
-		]
+		"description": "Render Typst code."
 	}
 ]
