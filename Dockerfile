@@ -1,4 +1,4 @@
-FROM lukemathwalker/cargo-chef:0.1.73-rust-1.90.0-alpine3.22 as chef
+FROM lukemathwalker/cargo-chef:0.1.73-rust-1.92.0-alpine3.23 as chef
 WORKDIR /app
 
 FROM chef AS planner
@@ -11,7 +11,7 @@ RUN cargo chef cook --release --recipe-path recipe.json
 COPY . .
 RUN cargo build --locked --release
 
-FROM gcr.io/distroless/static-debian12:nonroot-amd64
+FROM gcr.io/distroless/static-debian13:nonroot-amd64
 COPY --from=builder /app/target/release/typscord /
 EXPOSE 3000
 ENV PORT="3000"
