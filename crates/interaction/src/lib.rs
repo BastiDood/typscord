@@ -13,6 +13,7 @@ use twilight_model::{
 		interaction::{
 			Interaction, InteractionData, InteractionType,
 			application_command::CommandData,
+			message_component::MessageComponentInteractionData,
 			modal::{
 				ModalInteractionComponent, ModalInteractionData, ModalInteractionLabel,
 				ModalInteractionStringSelect, ModalInteractionTextInput,
@@ -22,8 +23,9 @@ use twilight_model::{
 	channel::message::{
 		Embed, EmojiReactionType, MessageFlags,
 		component::{
-			ActionRow, Button, ButtonStyle, Component, Label, SelectMenu, SelectMenuOption,
-			SelectMenuType, TextInput, TextInputStyle,
+			ActionRow, Button, ButtonStyle, Component, Label, MediaGallery, MediaGalleryItem,
+			SelectMenu, SelectMenuOption, SelectMenuType, TextDisplay, TextInput, TextInputStyle,
+			UnfurledMediaItem,
 		},
 		embed::{EmbedAuthor, EmbedField, EmbedFooter},
 	},
@@ -308,6 +310,41 @@ impl InteractionHandler {
 										required: None,
 									})),
 								}),
+								Component::Label(Label {
+									id: None,
+									label: "Send as Preview?".into(),
+									description: Some(
+										"Whether to send the generated image privately and ephemerally first before publishing.".into(),
+									),
+									component: Box::new(Component::SelectMenu(SelectMenu {
+										id: None,
+										custom_id: "preview".into(),
+										kind: SelectMenuType::Text,
+										disabled: false,
+										options: Some(vec![
+											SelectMenuOption {
+												default: true,
+												description: None,
+												emoji: None,
+												label: "Yes".into(),
+												value: "yes".into(),
+											},
+											SelectMenuOption {
+												default: false,
+												description: None,
+												emoji: None,
+												label: "No".into(),
+												value: "no".into(),
+											},
+										]),
+										placeholder: None,
+										min_values: None,
+										max_values: None,
+										default_values: None,
+										channel_types: None,
+										required: None,
+									})),
+								}),
 							]),
 							..Default::default()
 						}),
@@ -338,32 +375,57 @@ impl InteractionHandler {
 
 				assert_eq!(custom_id, "typst");
 
-				// Extract code from Label > TextInput and spoiler from Label > StringSelect
-				let mut code: Option<String> = None;
+				// Extract code from Label > TextInput and spoiler/preview from Label > StringSelect
+				let mut code: Option<Box<str>> = None;
 				let mut spoiler = false;
+				let mut preview = true;
 
 				for component in components {
 					let ModalInteractionLabel { component: inner, .. } = match component {
 						ModalInteractionComponent::Label(label) => label,
 						_ => continue,
 					};
-
 					match *inner {
 						ModalInteractionComponent::TextInput(ModalInteractionTextInput {
 							custom_id,
 							value,
 							..
 						}) if custom_id == "code" => {
-							code = Some(value);
+							code = Some(value.into_boxed_str());
 						}
 						ModalInteractionComponent::StringSelect(ModalInteractionStringSelect {
 							custom_id,
-							values,
+							mut values,
 							..
 						}) if custom_id == "spoiler" => {
-							spoiler = values.first().is_some_and(|v| v == "yes");
+							if let Some(value) = values.pop().as_deref() {
+								spoiler = match value {
+									"yes" => true,
+									"no" => false,
+									value => {
+										trace!(value, "skipping unknown spoiler value");
+										continue;
+									}
+								};
+							}
 						}
-						_ => {}
+						ModalInteractionComponent::StringSelect(ModalInteractionStringSelect {
+							custom_id,
+							mut values,
+							..
+						}) if custom_id == "preview" => {
+							if let Some(value) = values.pop().as_deref() {
+								preview = match value {
+									"yes" => true,
+									"no" => false,
+									value => {
+										trace!(value, "skipping unknown preview value");
+										continue;
+									}
+								};
+							}
+						}
+						_ => trace!("skipping unknown interaction component"),
 					}
 				}
 
@@ -379,11 +441,52 @@ impl InteractionHandler {
 					token,
 					content.into_boxed_str(),
 					spoiler,
+					preview,
 				));
 				trace!(?handle, "spawned subprocess");
 
 				InteractionResponse {
 					kind: InteractionResponseType::DeferredChannelMessageWithSource,
+					data: Some(InteractionResponseData {
+						flags: Some(if preview {
+							MessageFlags::EPHEMERAL | MessageFlags::IS_COMPONENTS_V2
+						} else {
+							MessageFlags::IS_COMPONENTS_V2
+						}),
+						..Default::default()
+					}),
+				}
+			}
+			Interaction {
+				id,
+				kind: InteractionType::MessageComponent,
+				application_id,
+				token,
+				data: Some(InteractionData::MessageComponent(component_data)),
+				message: Some(message),
+				..
+			} => {
+				let MessageComponentInteractionData { custom_id, .. } = *component_data;
+				info!(interaction_id = ?id, ?custom_id, "received message component interaction");
+
+				assert_eq!(custom_id, "publish", "unexpected button custom_id");
+
+				// Extract MediaGallery component from message
+				let media_gallery = message
+					.components
+					.into_iter()
+					.find_map(|component| match component {
+						Component::MediaGallery(gallery) => Some(gallery),
+						_ => None,
+					})
+					.expect("MediaGallery must be present");
+
+				// Spawn async task to publish the image
+				let token = token.into_boxed_str();
+				tokio::spawn(self.clone().publish_handler(application_id, token, media_gallery));
+
+				InteractionResponse {
+					kind: InteractionResponseType::DeferredUpdateMessage,
 					data: None,
 				}
 			}
@@ -398,6 +501,7 @@ impl InteractionHandler {
 		token: Box<str>,
 		value: Box<str>,
 		spoiler: bool,
+		preview: bool,
 	) {
 		let mut command = Command::new(self.exe_path.as_os_str())
 			.arg("worker")
@@ -434,24 +538,85 @@ impl InteractionHandler {
 
 					// Replace previously rendered code block with the rendered attachment
 					if !file.is_empty() {
-						http.replace_response_with_attachments(&[Attachment {
+						let filename: Box<str> =
+							if spoiler { "SPOILER_typst.webp".into() } else { "typst.webp".into() };
+
+						let attachment_url = format!("attachment://{filename}");
+						let media_gallery = Component::MediaGallery(MediaGallery {
+							id: None,
+							items: vec![MediaGalleryItem {
+								description: None,
+								media: UnfurledMediaItem {
+									url: attachment_url,
+									proxy_url: None,
+									height: None,
+									width: None,
+									content_type: None,
+								},
+								spoiler: Some(spoiler),
+							}],
+						});
+
+						let attachment = Attachment {
 							description: None,
 							file,
-							filename: From::from(if spoiler {
-								"SPOILER_typst.webp"
-							} else {
-								"typst.webp"
-							}),
+							filename: filename.into(),
 							id: 0,
-						}])
-						.await
-						.expect("original response replacement must succeed");
-					}
+						};
 
-					let value = format!("Compiled in **{elapsed_ms}ms**.");
-					http.create_ephemeral_followup_with_embeds(&value, &embeds)
-						.await
-						.expect("ephemeral followup must succeed");
+						if preview {
+							// Preview mode: MediaGallery + stats + Publish button
+							let stats_text = format!("Compiled in **{elapsed_ms}ms**.");
+							let text_display = Component::TextDisplay(TextDisplay {
+								id: None,
+								content: stats_text,
+							});
+
+							let publish_button = Component::ActionRow(ActionRow {
+								id: None,
+								components: vec![Component::Button(Button {
+									id: None,
+									style: ButtonStyle::Success,
+									emoji: Some(EmojiReactionType::Unicode {
+										name: String::from("🖋️"),
+									}),
+									label: Some(String::from("Publish")),
+									url: None,
+									custom_id: Some("publish".into()),
+									sku_id: None,
+									disabled: false,
+								})],
+							});
+
+							http.replace_response_with_preview(
+								&[attachment],
+								&[text_display, media_gallery, publish_button],
+								&embeds,
+							)
+							.await
+							.expect("preview response must succeed");
+						} else {
+							http.replace_response(&[attachment], &[media_gallery])
+								.await
+								.expect("response replacement must succeed");
+							let value = format!("Compiled in **{elapsed_ms}ms**.");
+							http.create_ephemeral_followup_with_embeds(&value, &embeds)
+								.await
+								.expect("ephemeral followup must succeed");
+						}
+					} else if preview {
+						// No file but preview mode - just show stats
+						let value = format!("Compiled in **{elapsed_ms}ms**.");
+						http.create_ephemeral_followup_with_embeds(&value, &embeds)
+							.await
+							.expect("ephemeral followup must succeed");
+					} else {
+						// No file and direct publish mode
+						let value = format!("Compiled in **{elapsed_ms}ms**.");
+						http.create_ephemeral_followup_with_embeds(&value, &embeds)
+							.await
+							.expect("ephemeral followup must succeed");
+					}
 				}
 				Err(error) => {
 					error!(?error, "worker process crashed");
@@ -484,6 +649,24 @@ impl InteractionHandler {
 					.expect("original response edit must succeed");
 			}
 		}
+	}
+
+	#[instrument(skip(self, media_gallery))]
+	async fn publish_handler(
+		self: Arc<Self>,
+		application_id: ApplicationId,
+		token: Box<str>,
+		media_gallery: MediaGallery,
+	) {
+		let http = self.http.interaction(application_id, token);
+
+		// Create public followup with the container
+		http.create_public_followup(vec![media_gallery.into()])
+			.await
+			.expect("public followup must succeed");
+
+		// Delete the ephemeral preview message
+		http.delete_response().await.expect("delete response must succeed");
 	}
 
 	#[instrument(skip_all)]
