@@ -1,11 +1,5 @@
-.vscode
-target
-
-# Environment Variables/Secrets
-**/.env
-**/.env.*
-
-discord.json
-fly.toml
-README.md
-rustfmt.toml
+*
+!Cargo.toml
+!Cargo.lock
+!src/
+!crates/
