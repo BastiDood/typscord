@@ -1,4 +1,4 @@
-FROM rust:1.93.1-slim-trixie AS builder
+FROM rust:1.94.1-slim-trixie AS builder
 WORKDIR /app
 RUN --mount=type=bind,source=Cargo.toml,target=Cargo.toml \
     --mount=type=bind,source=Cargo.lock,target=Cargo.lock \
