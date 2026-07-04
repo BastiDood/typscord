@@ -1,4 +1,4 @@
-FROM rust:1.95.0-alpine3.23 AS builder
+FROM rust:1.96.1-alpine3.24 AS builder
 WORKDIR /app
 RUN --mount=type=bind,source=Cargo.toml,target=Cargo.toml \
     --mount=type=bind,source=Cargo.lock,target=Cargo.lock \
