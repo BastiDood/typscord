@@ -4,7 +4,7 @@ mod worker;
 use anyhow::Result;
 use std::env;
 use tokio::runtime::Builder;
-use tracing::{error, info_span};
+use tracing::{Instrument as _, error, info_span};
 
 fn main() -> Result<()> {
 	if let Err(provider) = rustls::crypto::aws_lc_rs::default_provider().install_default() {
@@ -26,8 +26,7 @@ fn main() -> Result<()> {
 				let result = {
 					let span = info_span!("main");
 					typscord_telemetry::set_parent_from_env(&span)?;
-					let _guard = span.enter();
-					worker::render()
+					worker::render().instrument(span).await
 				};
 				telemetry.shutdown()?;
 				result?;

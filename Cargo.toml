@@ -31,7 +31,7 @@ futures-util.workspace = true
 hex = "0.4"
 rustls = "0.23"
 serde_json = { version = "1", default-features = false }
-tokio = { version = "1.47", features = ["rt-multi-thread", "net", "time"] }
+tokio = { version = "1.47", features = ["rt-multi-thread", "net", "time", "io-std", "io-util"] }
 tracing.workspace = true
 
 [profile.release]

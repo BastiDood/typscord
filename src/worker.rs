@@ -1,4 +1,5 @@
-use std::io::{self, Read as _, Write as _};
+use std::io;
+use tokio::io::{AsyncReadExt as _, AsyncWrite, AsyncWriteExt as _};
 use tracing::{error, info, instrument};
 use typscord_world::{Render, SourceDiagnostic, Warned, World};
 
@@ -6,11 +7,10 @@ use typscord_world::{Render, SourceDiagnostic, Warned, World};
 pub const MAX_DIAGNOSTIC_COUNT: usize = 25;
 
 #[instrument]
-pub fn render() -> io::Result<()> {
+pub async fn render() -> io::Result<()> {
 	let mut content = String::new();
-
 	{
-		let size = io::stdin().read_to_string(&mut content)?;
+		let size = tokio::io::stdin().read_to_string(&mut content).await?;
 		info!(%size, "read content from stdin");
 	}
 
@@ -23,10 +23,10 @@ pub fn render() -> io::Result<()> {
 	// Only show the most important warnings
 	warnings.truncate(MAX_DIAGNOSTIC_COUNT);
 
-	let mut stdout = io::stdout().lock();
+	let mut stdout = tokio::io::stdout();
 
-	stdout.write_all(&warning_count.to_be_bytes())?; // warnings
-	write_diagnostics(&mut stdout, warnings)?;
+	stdout.write_all(&warning_count.to_be_bytes()).await?; // warnings
+	write_diagnostics(&mut stdout, warnings).await?;
 
 	match output {
 		Ok(Render { buffer, .. }) => {
@@ -40,8 +40,8 @@ pub fn render() -> io::Result<()> {
 			}
 
 			// communicate that there is no error
-			stdout.write_all(&0usize.to_be_bytes())?;
-			stdout.write_all(&buffer)?;
+			stdout.write_all(&0usize.to_be_bytes()).await?;
+			stdout.write_all(&buffer).await?;
 		}
 		Err(mut errors) => {
 			let error_count = errors.len();
@@ -50,8 +50,8 @@ pub fn render() -> io::Result<()> {
 			// Only show the most important errors
 			errors.truncate(MAX_DIAGNOSTIC_COUNT);
 
-			stdout.write_all(&error_count.to_be_bytes())?; // errors
-			write_diagnostics(&mut stdout, errors)?;
+			stdout.write_all(&error_count.to_be_bytes()).await?; // errors
+			write_diagnostics(&mut stdout, errors).await?;
 		}
 	}
 
@@ -59,14 +59,16 @@ pub fn render() -> io::Result<()> {
 	Ok(())
 }
 
-fn write_diagnostics(
-	stdout: &mut impl io::Write,
+async fn write_diagnostics(
+	stdout: &mut (impl AsyncWrite + Unpin),
 	diagnostics: impl IntoIterator<Item = SourceDiagnostic>,
 ) -> io::Result<()> {
 	for SourceDiagnostic { message, hints, .. } in diagnostics {
-		writeln!(stdout, "{message}")?; // name
+		stdout.write_all(message.as_bytes()).await?; // name
+		stdout.write_all(b"\n").await?;
 		let hint = hints.first().map(|hint| hint.v.as_str()).unwrap_or("No hints provided.");
-		writeln!(stdout, "{hint}")?; // value
+		stdout.write_all(hint.as_bytes()).await?; // value
+		stdout.write_all(b"\n").await?;
 	}
 	Ok(())
 }
