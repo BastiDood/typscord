@@ -29,13 +29,22 @@ Typscord is written in [Rust] using the [Axum] web framework for the [Tokio] run
 open .env | from toml | load-env
 ```
 
-| **Name**                       | **Description**                                                                      | Scripts? | Server? |
-| ------------------------------ | ------------------------------------------------------------------------------------ | :------: | :-----: |
-| `DISCORD_APPLICATION_ID`       | Used for programmatically registering the slash commands via the Discord API.        |    ✅    |   ❌    |
-| `DISCORD_BOT_TOKEN`            | Used for sending HTTP requests to the Discord API for interaction followup messages. |    ✅    |   ✅    |
-| `DISCORD_PUBLIC_KEY`           | Used to verify whether incoming Discord interactions are _actually_ from Discord.    |    ❌    |   ✅    |
-| `TYPSCORD_COMPILATION_TIMEOUT` | The maximum number of milliseconds to wait for a Typst compilation to finish.        |    ❌    |   ✅    |
-| `PORT`                         | The TCP port to which the network socket will bind.                                  |    ❌    |   ✅    |
+| **Name**                       | **Description**                                                                                                         | Scripts? | Server? |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------- | :------: | :-----: |
+| `DISCORD_APPLICATION_ID`       | Used for programmatically registering the slash commands via the Discord API.                                           |    ✅    |   ❌    |
+| `DISCORD_BOT_TOKEN`            | Used for sending HTTP requests to the Discord API for interaction followup messages.                                    |    ✅    |   ✅    |
+| `DISCORD_PUBLIC_KEY`           | Used to verify whether incoming Discord interactions are _actually_ from Discord.                                       |    ❌    |   ✅    |
+| `OTEL_EXPORTER_OTLP_ENDPOINT`  | The OpenTelemetry OTLP HTTP endpoint. Docker Compose defaults this to `http://otel:4318`.                               |    ❌    |   ✅    |
+| `OTEL_EXPORTER_OTLP_HEADERS`   | Optional comma-separated OpenTelemetry OTLP HTTP headers for authorization or other collector-specific needs.           |    ❌    |   ✅    |
+| `PORT`                         | The TCP port to which the network socket will bind. The Docker image defaults this to `3000`.                           |    ❌    |   ✅    |
+| `RUST_LOG`                     | The tracing filter. The Docker image defaults this to `typscord=trace`.                                                 |    ❌    |   ✅    |
+| `TYPSCORD_COMPILATION_TIMEOUT` | The maximum number of milliseconds to wait for a Typst compilation to finish. The Docker image defaults this to `1000`. |    ❌    |   ✅    |
+
+`OTEL_EXPORTER_OTLP_HEADERS` uses comma-separated key-value pairs. For example:
+
+```shell
+OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer%20TOKEN"
+```
 
 ### Registering the Slash Commands
 
@@ -57,6 +66,14 @@ curl --request 'PUT' --header 'Content-Type: application/json' --header "Authori
 ```shell
 # Make sure all the environment variables are properly set!
 cargo run --release
+```
+
+### Running with Docker Compose
+
+Docker Compose starts Typscord and the local `otel-gui` collector. The user must provide `DISCORD_BOT_TOKEN` and `DISCORD_PUBLIC_KEY` in a `.env` at the project root.
+
+```shell
+docker compose up --build
 ```
 
 ## Legal
