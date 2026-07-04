@@ -10,7 +10,7 @@ pub struct File {
 
 impl File {
 	pub fn new(id: FileId, text: String) -> Self {
-		let bytes = Bytes::new(text.clone().into_bytes());
+		let bytes = Bytes::from_string(text.clone());
 		let source = Source::new(id, text);
 		Self { bytes, source }
 	}

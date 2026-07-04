@@ -8,19 +8,19 @@ use file::File;
 use font::{FONT_BOOK, FONTS};
 use image::{ColorType, ImageFormat, write_buffer_with_format};
 use library::LIBRARY;
-use std::collections::BTreeMap;
 use std::io::Cursor;
-use time::{PrimitiveDateTime, UtcDateTime, UtcOffset};
+use time::{UtcDateTime, UtcOffset};
 use typst::{
-	Document, Library, World as TypstWorld, compile,
+	Library, World as TypstWorld, compile,
 	diag::{FileError, FileResult, SourceResult},
-	foundations::{Bytes, Datetime},
-	layout::{Abs, PagedDocument},
-	syntax::{FileId, Source, VirtualPath},
+	foundations::{Bytes, Datetime, Duration as TypstDuration, Output},
+	layout::Abs,
+	syntax::{FileId, RootedPath, Source, VirtualPath, VirtualRoot},
 	text::{Font, FontBook},
-	utils::LazyHash,
+	utils::{LazyHash, Scalar},
 };
-use typst_render::render_merged;
+use typst_layout::PagedDocument;
+use typst_render::{RenderOptions, render_merged};
 
 pub use typst::diag::{SourceDiagnostic, Warned};
 
@@ -31,18 +31,23 @@ pub struct Render {
 }
 
 pub struct World {
-	sources: BTreeMap<FileId, File>,
+	main: FileId,
+	file: File,
 }
 
 impl World {
 	pub fn from_single_source(contents: String) -> Self {
 		// Entry point is basically a single file named `main.typ`
-		let entry_file_id = FileId::new_fake(VirtualPath::new("/main.typ"));
+		let entry_path = RootedPath::new(
+			VirtualRoot::Project,
+			VirtualPath::new("main.typ").expect("static path must be valid"),
+		);
+		let entry_file_id = FileId::unique(entry_path);
 		let entry_source = File::new(entry_file_id, contents);
-		Self { sources: BTreeMap::from([(entry_file_id, entry_source)]) }
+		Self { main: entry_file_id, file: entry_source }
 	}
 
-	pub fn compile<D: Document>(&self) -> Warned<SourceResult<D>> {
+	pub fn compile<T: Output>(&self) -> Warned<SourceResult<T>> {
 		compile(self)
 	}
 
@@ -51,7 +56,12 @@ impl World {
 		Warned {
 			warnings,
 			output: output.map(|document| {
-				let pixel_map = render_merged(&document, 4., Abs::zero(), None);
+				let pixel_map = render_merged(
+					&document,
+					&RenderOptions { pixel_per_pt: Scalar::new(4.0), ..Default::default() },
+					Abs::zero(),
+					None,
+				);
 				let mut buffer = Cursor::<Vec<_>>::default();
 				write_buffer_with_format(
 					&mut buffer,
@@ -65,6 +75,10 @@ impl World {
 				Render { document, buffer: buffer.into_inner() }
 			}),
 		}
+	}
+
+	fn entry(&self, id: FileId) -> FileResult<&File> {
+		if id == self.main { Ok(&self.file) } else { Err(FileError::NotSource) }
 	}
 }
 
@@ -81,32 +95,32 @@ impl TypstWorld for World {
 		FONTS.get(index).cloned()
 	}
 
-	fn today(&self, offset: Option<i64>) -> Option<Datetime> {
+	fn today(&self, offset: Option<TypstDuration>) -> Option<Datetime> {
 		let now = UtcDateTime::now();
 		let offset = offset
 			.and_then(|offset| {
-				let offset = offset.try_into().ok()?;
-				UtcOffset::from_hms(offset, 0, 0).ok()
+				let offset: time::Duration = offset.into();
+				let seconds = offset.whole_seconds().try_into().ok()?;
+				UtcOffset::from_whole_seconds(seconds).ok()
 			})
 			.unwrap_or(UtcOffset::UTC);
 		let now = now.to_offset(offset);
-		Some(Datetime::Datetime(PrimitiveDateTime::new(now.date(), now.time())))
+		Datetime::from_ymd(now.year(), now.month().into(), now.day())
 	}
 
 	fn main(&self) -> FileId {
-		let (&id, _) = self.sources.first_key_value().expect("root source must be present");
-		id
+		self.main
 	}
 
 	fn source(&self, id: FileId) -> FileResult<Source> {
 		// TODO: Support external packages.
-		let File { source, .. } = self.sources.get(&id).ok_or(FileError::NotSource)?;
+		let File { source, .. } = self.entry(id)?;
 		Ok(source.clone())
 	}
 
 	fn file(&self, id: FileId) -> FileResult<Bytes> {
 		// TODO: Support external packages.
-		let File { bytes, .. } = self.sources.get(&id).ok_or(FileError::NotSource)?;
+		let File { bytes, .. } = self.entry(id)?;
 		Ok(bytes.clone())
 	}
 }

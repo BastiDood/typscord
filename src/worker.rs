@@ -26,11 +26,7 @@ pub fn main() -> io::Result<()> {
 	let mut stdout = io::stdout().lock();
 
 	stdout.write_all(&warning_count.to_be_bytes())?; // warnings
-	for SourceDiagnostic { message, hints, .. } in warnings {
-		writeln!(stdout, "{message}")?; // name
-		let hint = hints.first().map(AsRef::as_ref).unwrap_or("No hints provided.");
-		writeln!(stdout, "{hint}")?; // value
-	}
+	write_diagnostics(&mut stdout, warnings)?;
 
 	match output {
 		Ok(Render { buffer, .. }) => {
@@ -55,14 +51,22 @@ pub fn main() -> io::Result<()> {
 			errors.truncate(MAX_DIAGNOSTIC_COUNT);
 
 			stdout.write_all(&error_count.to_be_bytes())?; // errors
-			for SourceDiagnostic { message, hints, .. } in errors {
-				writeln!(stdout, "{message}")?; // name
-				let hint = hints.first().map(AsRef::as_ref).unwrap_or("No hints provided.");
-				writeln!(stdout, "{hint}")?; // value
-			}
+			write_diagnostics(&mut stdout, errors)?;
 		}
 	}
 
 	drop(stdout);
+	Ok(())
+}
+
+fn write_diagnostics(
+	stdout: &mut impl io::Write,
+	diagnostics: impl IntoIterator<Item = SourceDiagnostic>,
+) -> io::Result<()> {
+	for SourceDiagnostic { message, hints, .. } in diagnostics {
+		writeln!(stdout, "{message}")?; // name
+		let hint = hints.first().map(|hint| hint.v.as_str()).unwrap_or("No hints provided.");
+		writeln!(stdout, "{hint}")?; // value
+	}
 	Ok(())
 }

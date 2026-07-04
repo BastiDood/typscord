@@ -11,7 +11,7 @@ ecow = { version = "0.2", default-features = false }
 image = { version = "0.25", default-features = false, features = ["rayon", "webp"] }
 time = "0.3"
 tracing.workspace = true
-ttf-parser = { version = "0.25", default-features = false, features = ["std"] }
-typst = "0.14"
-typst-assets = { version = "0.14", features = ["fonts"] }
-typst-render = "0.14"
+typst = "0.15"
+typst-assets = { version = "0.15", features = ["fonts"] }
+typst-layout = "0.15"
+typst-render = "0.15"
