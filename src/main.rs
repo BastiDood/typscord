@@ -22,7 +22,7 @@ fn main() -> Result<()> {
 			Ok(())
 		}),
 		Some("worker") => {
-			Builder::new_current_thread().enable_io().enable_time().build()?.block_on(async {
+			Builder::new_multi_thread().enable_io().enable_time().build()?.block_on(async {
 				let telemetry = typscord_telemetry::init("typscord-worker")?;
 				let result = {
 					let span = info_span!("main");
