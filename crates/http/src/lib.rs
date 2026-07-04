@@ -3,7 +3,7 @@
 extern crate alloc;
 
 use alloc::{boxed::Box, string::String};
-use tracing::{info, instrument};
+use tracing::{debug, instrument};
 use twilight_http::{Client, client::InteractionClient};
 use twilight_model::{
 	channel::message::Embed,
@@ -40,52 +40,55 @@ pub struct HttpInteraction<'http> {
 }
 
 impl HttpInteraction<'_> {
-	#[instrument(skip(self), level = "trace")]
+	#[instrument(skip(self, content, embeds), level = "trace")]
 	pub async fn update_response_with_embeds(
 		&self,
 		content: &str,
 		embeds: &[Embed],
 	) -> TwilightHttpError<()> {
-		let message = self
+		let status = self
 			.http
 			.update_response(&self.interaction_token)
 			.content(Some(content))
 			.embeds(Some(embeds))
-			.await?;
-		info!(?message, "response updated with embeds");
+			.await?
+			.status();
+		debug!(response.status = %status, "response updated with embeds");
 		Ok(())
 	}
 
-	#[instrument(skip(self), level = "trace")]
+	#[instrument(skip(self, attachments), level = "trace")]
 	pub async fn replace_response_with_attachments(
 		&self,
 		attachments: &[Attachment],
 	) -> TwilightHttpError<()> {
-		let message = self
+		let status = self
 			.http
 			.update_response(&self.interaction_token)
 			.content(None)
 			.embeds(None)
 			.attachments(attachments)
-			.await?;
-		info!(?message, "response replaced with attachments");
+			.await?
+			.status();
+		debug!(response.status = %status, "response replaced with attachments");
 		Ok(())
 	}
 
-	#[instrument(skip(self), level = "trace")]
+	#[instrument(skip(self, content, embeds), level = "trace")]
 	pub async fn create_ephemeral_followup_with_embeds(
 		&self,
 		content: &str,
 		embeds: &[Embed],
 	) -> TwilightHttpError<()> {
-		let message = self
+		let status = self
 			.http
 			.create_followup(&self.interaction_token)
 			.content(content)
 			.embeds(embeds)
 			.flags(MessageFlags::EPHEMERAL)
-			.await?;
-		info!(?message, "ephemeral followup created");
+			.await?
+			.status();
+		debug!(response.status = %status, "ephemeral followup created");
 		Ok(())
 	}
 }
