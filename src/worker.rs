@@ -6,7 +6,7 @@ use typscord_world::{Render, SourceDiagnostic, Warned, World};
 pub const MAX_DIAGNOSTIC_COUNT: usize = 25;
 
 #[instrument]
-pub fn main() -> io::Result<()> {
+pub fn render() -> io::Result<()> {
 	let mut content = String::new();
 
 	{

@@ -401,6 +401,7 @@ impl InteractionHandler {
 	) {
 		let mut command = Command::new(self.exe_path.as_os_str())
 			.arg("worker")
+			.envs(typscord_telemetry::current_trace_context())
 			.stdin(Stdio::piped())
 			.stdout(Stdio::piped())
 			.spawn()

@@ -1,0 +1,27 @@
+[package]
+name = "typscord-telemetry"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+opentelemetry = { version = "0.32", default-features = false, features = ["trace"] }
+opentelemetry-appender-tracing = { version = "0.32", default-features = false }
+opentelemetry-otlp = { version = "0.32", default-features = false, features = [
+	"http-proto",
+	"reqwest-client",
+	"reqwest-rustls",
+	"logs",
+] }
+opentelemetry_sdk = { version = "0.32", default-features = false, features = [
+	"trace",
+	"logs",
+	"rt-tokio",
+	"experimental_trace_batch_span_processor_with_async_runtime",
+	"experimental_logs_batch_log_processor_with_async_runtime",
+] }
+tracing.workspace = true
+tracing-opentelemetry = { version = "0.33", default-features = false }
+tracing-subscriber = { version = "0.3", default-features = false, features = [
+	"registry",
+	"env-filter",
+] }

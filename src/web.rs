@@ -11,12 +11,12 @@ use core::{future, net::Ipv4Addr, time::Duration};
 use ed25519_dalek::{Signature, VerifyingKey};
 use futures_util::TryStreamExt as _;
 use std::{env, sync::Arc};
-use tokio::{net::TcpListener, runtime::Builder};
+use tokio::net::TcpListener;
 use tracing::{error, info, instrument};
 use typscord_interaction::{InteractionHandler, InteractionResponse};
 
 #[instrument]
-pub fn main() -> Result<()> {
+pub async fn main() -> Result<()> {
 	let port: u16 = env::var("PORT")
 		.context("PORT must be set")?
 		.parse()
@@ -43,28 +43,26 @@ pub fn main() -> Result<()> {
 	let exe_path = env::current_exe()?.into_boxed_path();
 	info!(exe = %exe_path.display(), "executable path found");
 
-	Builder::new_current_thread().enable_io().enable_time().build()?.block_on(async {
-		let listener = TcpListener::bind((Ipv4Addr::UNSPECIFIED, port)).await?;
-		{
-			let address = listener.local_addr()?;
-			info!(%address, "listening on local address");
-		}
+	let listener = TcpListener::bind((Ipv4Addr::UNSPECIFIED, port)).await?;
+	{
+		let address = listener.local_addr()?;
+		info!(%address, "listening on local address");
+	}
 
-		let app = Router::new()
-			.route("/", routing::get(handle_health_check))
-			.route("/discord/interaction", routing::post(handle_discord_interaction))
-			.with_state(KeyState {
-				public_key: Arc::new(public_key),
-				interaction_handler: Arc::new(InteractionHandler::new(
-					Duration::from_millis(typscord_compilation_timeout),
-					exe_path,
-					discord_bot_token,
-				)),
-			});
+	let app = Router::new()
+		.route("/", routing::get(handle_health_check))
+		.route("/discord/interaction", routing::post(handle_discord_interaction))
+		.with_state(KeyState {
+			public_key: Arc::new(public_key),
+			interaction_handler: Arc::new(InteractionHandler::new(
+				Duration::from_millis(typscord_compilation_timeout),
+				exe_path,
+				discord_bot_token,
+			)),
+		});
 
-		serve(listener, app).await?;
-		Ok(())
-	})
+	serve(listener, app).await?;
+	Ok(())
 }
 
 #[instrument]
