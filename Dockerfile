@@ -11,6 +11,5 @@ RUN --mount=type=bind,source=Cargo.toml,target=Cargo.toml \
 
 FROM gcr.io/distroless/static-debian13:nonroot-amd64
 COPY --from=builder /typscord /
-EXPOSE 3000
 ENV PORT="3000"
 CMD ["/typscord"]
