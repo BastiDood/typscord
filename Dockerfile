@@ -1,11 +1,11 @@
 FROM rust:1.96.1-alpine3.24 AS builder
 WORKDIR /app
-RUN --mount=type=bind,source=Cargo.toml,target=Cargo.toml \
-    --mount=type=bind,source=Cargo.lock,target=Cargo.lock \
-    --mount=type=bind,source=src,target=src \
-    --mount=type=bind,source=crates,target=crates \
+RUN --mount=type=bind,source=Cargo.toml,target=Cargo.toml,readonly \
+    --mount=type=bind,source=Cargo.lock,target=Cargo.lock,readonly \
+    --mount=type=bind,source=src,target=src,readonly \
+    --mount=type=bind,source=crates,target=crates,readonly \
     --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/usr/local/cargo/git \
+    --mount=type=cache,target=/usr/local/cargo/git/db \
     --mount=type=cache,target=/app/target \
     cargo build --locked --release && cp target/release/typscord /typscord
 
