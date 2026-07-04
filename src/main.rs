@@ -13,15 +13,16 @@ fn main() -> Result<()> {
 	}
 
 	let mode = env::args().nth(1);
-	Builder::new_multi_thread().enable_io().enable_time().build()?.block_on(async {
-		match mode.as_deref() {
-			None => {
-				let telemetry = typscord_telemetry::init("typscord-web")?;
-				let result = web::main().await;
-				telemetry.shutdown()?;
-				result?;
-			}
-			Some("worker") => {
+	match mode.as_deref() {
+		None => Builder::new_multi_thread().enable_io().enable_time().build()?.block_on(async {
+			let telemetry = typscord_telemetry::init("typscord-web")?;
+			let result = web::main().await;
+			telemetry.shutdown()?;
+			result?;
+			Ok(())
+		}),
+		Some("worker") => {
+			Builder::new_current_thread().enable_io().enable_time().build()?.block_on(async {
 				let telemetry = typscord_telemetry::init("typscord-worker")?;
 				let result = {
 					let span = info_span!("main");
@@ -30,13 +31,12 @@ fn main() -> Result<()> {
 				};
 				telemetry.shutdown()?;
 				result?;
-			}
-			Some(mode) => {
-				error!(mode, "unknown mode");
-				anyhow::bail!("unknown arguments");
-			}
+				Ok(())
+			})
 		}
-
-		Ok(())
-	})
+		Some(mode) => {
+			error!(mode, "unknown mode");
+			anyhow::bail!("unknown arguments");
+		}
+	}
 }
